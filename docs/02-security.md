@@ -67,13 +67,15 @@ Confluent's provider integration gives you a Confluent-side IAM principal ARN an
 
 Scope: single bucket. Minimum verbs Tableflow documents for BYOS S3 (verify against the current BYOS quick start; the list has changed between releases):
 
-- `s3:ListBucket`, `s3:GetBucketLocation` on the bucket
-- `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:AbortMultipartUpload` on `bucket/*`
-- If SSE-KMS: `kms:GenerateDataKey`, `kms:Decrypt`, `kms:Encrypt` on the bucket key (see Confluent "self-managed encryption keys with Tableflow")
+- `s3:ListBucket`, `s3:GetBucketLocation`, `s3:ListBucketMultipartUploads` on the bucket
+- `s3:GetObject`, `s3:PutObject`, `s3:PutObjectTagging`, `s3:DeleteObject`, `s3:AbortMultipartUpload`, `s3:ListMultipartUploadParts` on `bucket/*`
+- If SSE-KMS: `kms:GenerateDataKey*`, `kms:Decrypt`, `kms:Encrypt`, `kms:ReEncrypt*`, `kms:DescribeKey` on the bucket key (see Confluent "self-managed encryption keys with Tableflow")
+
+Verified in Phase 1 against the Configure Storage page (docs/09 Q8). Implemented in `terraform/aws/iam-writer.tf`. The demo uses SSE-S3, so no KMS statement is attached.
 
 ### `tableflow-glue-writer` permissions
 
-Scope: the Glue database Tableflow creates (name = cluster ID). Verbs per the Confluent Glue integration guide (verify): `glue:CreateDatabase`, `glue:GetDatabase`, `glue:CreateTable`, `glue:GetTable`, `glue:UpdateTable`, `glue:DeleteTable`, `glue:GetTables`. Resource ARNs limited to `catalog`, `database/<cluster-id>`, `table/<cluster-id>/*`.
+Scope: the Glue database Tableflow creates (name = cluster ID). Verbs: `glue:CreateDatabase`, `glue:GetDatabase`, `glue:GetDatabases`, `glue:CreateTable`, `glue:GetTable`, `glue:GetTables`, `glue:UpdateTable`, `glue:DeleteTable`. Confluent does not publish this list; the Console generates a template per integration. This is a superset to be diffed against that template in Phase 5 (docs/09 Q8). Resource ARNs limited to `catalog`, `database/<cluster-id>`, `table/<cluster-id>/*`.
 
 ### `consumer-iceberg` permissions
 
@@ -89,7 +91,9 @@ Scope: the Glue database Tableflow creates (name = cluster ID). Verbs per the Co
 
 ### `github-actions-terraform`
 
-OIDC trust to the `gogetjax/tableflow-demo` repo, `main` branch and `environment:prod`. Permissions: create/manage the bucket, roles, Glue database, VPC endpoints, plus read/write on the Terraform state bucket and lock table. Never given `sts:AssumeRole` into the consumer roles.
+OIDC trust to the `gogetjax/tableflow-demo` repo on `environment:prod` (the `sub` claim carries one value; environment-gated jobs use the environment form, and only `main` runs the apply workflows). The repo has GitHub's immutable subject claim enabled, so the `sub` is `repo:gogetjax@<owner-id>/tableflow-demo@<repo-id>:environment:prod`; the trust accepts both that and the plain form. The account's GitHub OIDC provider predates this repo, so Terraform references it with a data source. Permissions: manage the lake bucket, the six roles and their `tableflow-demo-*` policies, the consumer VPC (`ec2:*`, since EC2 resource-level scoping across a VPC lifecycle is impractical in a demo account), Glue read for verification, plus read/write on the Terraform state bucket and lock table. Explicit `Deny` on `sts:AssumeRole` into the consumer roles. Implemented in `terraform/aws/iam-github.tf`.
+
+A second role, `github-actions-consumers`, trusts `environment:consumers` and can only assume the two consumer roles.
 
 ## Bucket policy
 
@@ -97,7 +101,7 @@ Explicit denies, in this order of importance:
 
 1. Deny `s3:PutObject`, `s3:DeleteObject*`, `s3:AbortMultipartUpload` to any principal except `tableflow-writer` and (for lifecycle/teardown only) `github-actions-terraform`.
 2. Deny all access unless `aws:SecureTransport` is true.
-3. Deny `s3:PutObject` without server-side encryption header.
+3. Deny `s3:PutObject` whose encryption header names anything other than SSE-S3 or SSE-KMS. Requests with no header fall through to bucket default encryption (SSE-S3), so this never blocks Tableflow, whose header behavior is not documented. A strict "header required" deny was considered and rejected for that reason.
 4. Allow `s3:GetObject` and `s3:ListBucket` to `consumer-iceberg`, `consumer-delta`.
 
 Bucket settings: versioning on (protects against accidental deletes), Block Public Access all four, Object Ownership = bucket owner enforced, lifecycle rule **none** on Tableflow prefixes (Tableflow manages retention; a lifecycle rule would corrupt tables).

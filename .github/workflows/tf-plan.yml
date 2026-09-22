@@ -1,0 +1,64 @@
+name: tf-plan
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - "schemas/**"
+      - ".github/workflows/tf-plan.yml"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+
+jobs:
+  plan-aws:
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: terraform/aws
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.13.3"
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: fmt
+        run: terraform fmt -check -recursive ..
+      - name: init
+        run: terraform init
+      - name: validate
+        run: terraform validate
+      - name: plan
+        id: plan
+        env:
+          TF_VAR_confluent_pi_principal_arn: ${{ vars.TF_VAR_CONFLUENT_PI_PRINCIPAL_ARN }}
+          TF_VAR_confluent_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_PI_EXTERNAL_ID }}
+          TF_VAR_kafka_cluster_id: ${{ vars.TF_VAR_KAFKA_CLUSTER_ID || '*' }}
+        run: |
+          terraform plan -no-color -out=tfplan | tee plan.txt
+          echo "summary=$(grep -E '^(Plan:|No changes)' plan.txt | head -1)" >> "$GITHUB_OUTPUT"
+      - name: comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/aws/plan.txt', 'utf8');
+            const body = `### terraform/aws plan\n\n\`${{ steps.plan.outputs.summary }}\`\n\n<details><summary>Full plan</summary>\n\n\`\`\`\n${plan.slice(0, 60000)}\n\`\`\`\n\n</details>`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, body,
+            });
