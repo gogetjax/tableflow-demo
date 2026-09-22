@@ -44,3 +44,20 @@ Thumbs.db
 # Logs / temp
 *.log
 tmp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# ShadowTraffic license files
+license.env
+shadowtraffic-license*
+*.license

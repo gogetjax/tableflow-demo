@@ -1,0 +1,3 @@
+# terraform/aws
+
+Root module for the customer AWS account: the BYOS S3 bucket, the `tableflow-writer` and `tableflow-glue-writer` roles trusted by the Confluent provider integration, the `consumer-iceberg` and `consumer-delta` roles, the GitHub Actions OIDC role, and a private VPC with S3 and Glue endpoints for isolated consumer runs. Populated in Phase 1 by [prompts/01-aws-foundation.md](../../prompts/01-aws-foundation.md). Layout and bootstrap order: [docs/07-terraform-cicd.md](../../docs/07-terraform-cicd.md). IAM and bucket policy requirements: [docs/02-security.md](../../docs/02-security.md).

@@ -1,0 +1,3 @@
+# terraform/confluent
+
+Root module for Confluent Cloud: environment, Kafka cluster, Schema Registry subjects from `schemas/`, topics, service accounts and role bindings, Flink compute pool, provider integration, Tableflow enablement, and the Glue catalog integration. Populated in Phase 2 by [prompts/02-confluent-foundation.md](../../prompts/02-confluent-foundation.md) and extended in Phase 5. The pinned `confluentinc/confluent` provider version and its registry doc URL are recorded here once chosen. Layout: [docs/07-terraform-cicd.md](../../docs/07-terraform-cicd.md). RBAC table: [docs/02-security.md](../../docs/02-security.md). Tableflow resources: [docs/05-tableflow-spec.md](../../docs/05-tableflow-spec.md).
