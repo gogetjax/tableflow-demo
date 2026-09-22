@@ -78,6 +78,20 @@ resource "confluent_role_binding" "flink_manage_rejected" {
   crn_pattern = "${local.kafka_crn}/topic=orders.rejected"
 }
 
+# Read on the sink topics so verification queries (and any later downstream statement) can
+# run as sa-flink; Flink refuses to read a table without it ("enable 'read' access mode").
+resource "confluent_role_binding" "flink_read_clean" {
+  principal   = "User:${confluent_service_account.flink.id}"
+  role_name   = "DeveloperRead"
+  crn_pattern = "${local.kafka_crn}/topic=orders.clean"
+}
+
+resource "confluent_role_binding" "flink_read_rejected" {
+  principal   = "User:${confluent_service_account.flink.id}"
+  role_name   = "DeveloperRead"
+  crn_pattern = "${local.kafka_crn}/topic=orders.rejected"
+}
+
 resource "confluent_role_binding" "flink_write_clean" {
   principal   = "User:${confluent_service_account.flink.id}"
   role_name   = "DeveloperWrite"
