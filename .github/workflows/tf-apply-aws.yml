@@ -1,0 +1,46 @@
+name: tf-apply-aws
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/aws/**"
+      - ".github/workflows/tf-apply-aws.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-apply-aws
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: terraform/aws
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.13.3"
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: terraform init
+      - run: terraform validate
+      - name: apply
+        env:
+          TF_VAR_confluent_pi_principal_arn: ${{ vars.TF_VAR_CONFLUENT_PI_PRINCIPAL_ARN }}
+          TF_VAR_confluent_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_PI_EXTERNAL_ID }}
+          TF_VAR_kafka_cluster_id: ${{ vars.TF_VAR_KAFKA_CLUSTER_ID || '*' }}
+        run: terraform apply -auto-approve -no-color

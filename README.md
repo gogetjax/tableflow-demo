@@ -55,7 +55,18 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 
 ## Status
 
-Phase 0: design and docs. See [docs/09-open-questions.md](docs/09-open-questions.md) for items that must be verified against live Confluent Cloud before the README claims them.
+| Phase | State |
+|---|---|
+| 0 Design and docs | done |
+| 1 AWS foundation (`terraform/aws`) | applied: lake bucket, 6 IAM roles, isolated consumer VPC |
+| 2 Confluent foundation | pending |
+| 3 Producer | pending |
+| 4 Flink | pending |
+| 5 Tableflow + Glue | pending |
+| 6 Consumers | pending |
+| 7 CI polish | pending |
+
+See [docs/09-open-questions.md](docs/09-open-questions.md) for items that must be verified against live Confluent Cloud before the README claims them.
 
 ## Key constraints (read before changing anything)
 

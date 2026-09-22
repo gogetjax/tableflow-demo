@@ -4,12 +4,17 @@
 
 ```
 terraform/
+  bootstrap/               # LOCAL state: creates the state bucket + lock table, applied once by hand
+    main.tf
   aws/                     # state: s3 backend, key aws/terraform.tfstate
-    main.tf                # bucket, KMS (optional), Glue db placeholder (see note), VPC endpoints
-    iam-writer.tf          # tableflow-writer, tableflow-glue-writer (trust from Confluent PI)
+    versions.tf            # pins, s3 backend
+    variables.tf           # region, PI principal/external id, kafka_cluster_id, extra consumer trust
+    main.tf                # lake bucket + bucket policy (Glue db is created by Tableflow; see note)
+    iam-writer.tf          # tableflow-writer, tableflow-glue-writer (two-pass trust from Confluent PI)
     iam-consumers.tf       # consumer-iceberg, consumer-delta
-    iam-github.tf          # OIDC role for Actions
-    outputs.tf             # role ARNs, bucket name
+    iam-github.tf          # github-actions-terraform, github-actions-consumers (OIDC)
+    network.tf             # consumer VPC, private subnet, S3 gateway + Glue interface endpoints
+    outputs.tf             # role ARNs, bucket name, subnet/SG ids
   confluent/               # state: s3 backend, key confluent/terraform.tfstate
     env.tf                 # environment, SR (Essentials), cluster
     topics.tf              # orders.raw, orders.clean, orders.rejected, orders.tableflow-errors
@@ -36,27 +41,27 @@ flowchart TD
   E --> F[6. consumers smoke test]
 ```
 
-Steps 1–4 are `terraform apply` runs in GitHub Actions gated by environment approval. Step 5 is scripted. Step 6 is a workflow.
+Step 1 ran locally in Phase 1 because it creates the CI role itself. Steps 2–4 are `terraform apply` runs in GitHub Actions on the `prod` environment. Step 5 is scripted. Step 6 is a workflow. Exact commands for the step 3 re-apply are in `terraform/README.md`.
 
 ## GitHub Actions
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `tf-plan.yml` | PR touching `terraform/**` or `schemas/**` | fmt, validate, plan for both roots, plan posted as PR comment |
+| `tf-plan.yml` | PR touching `terraform/**` or `schemas/**` | fmt, validate, plan for both roots, plan posted as PR comment. Runs on the `prod` environment so OIDC can assume the Terraform role |
 | `tf-apply-aws.yml` | push to `main`, path `terraform/aws/**` | apply with `environment: prod` approval |
 | `tf-apply-confluent.yml` | push to `main`, path `terraform/confluent/**` or `schemas/**` | apply with approval |
 | `flink-apply.yml` | manual | applies `flink/*.sql` in order, idempotent (skip if statement name exists) |
 | `consumers-smoke.yml` | schedule + PR on `consumers/**` | assumes consumer roles via OIDC, runs reads, asserts |
 
 Auth:
-- AWS: OIDC to `github-actions-terraform`. No static keys.
+- AWS: OIDC to `github-actions-terraform`. No static keys. Role ARN in the `prod` environment variable `AWS_TERRAFORM_ROLE_ARN`; PI principal, external ID, and cluster ID in `TF_VAR_*` environment variables once Phase 2 produces them.
 - Confluent: `CONFLUENT_CLOUD_API_KEY/SECRET` for `sa-terraform-ci` in the `prod` GitHub Environment.
 - Consumer roles: separate OIDC trust conditions (`environment:consumers`) so the Terraform role can't be used to read data and vice versa.
 
 ## Pins
 
-- Terraform ≥ 1.9, `confluentinc/confluent` provider pinned to an exact version; record the registry doc URL for that version in `terraform/confluent/README.md`.
-- `hashicorp/aws` pinned.
+- Terraform ≥ 1.9 (CI runs 1.13.3), `confluentinc/confluent` provider pinned to an exact version; record the registry doc URL for that version in `terraform/confluent/README.md`.
+- `hashicorp/aws` pinned to 6.66.0.
 - Renovate or Dependabot on provider versions with plan-only PRs.
 
 ## Teardown
