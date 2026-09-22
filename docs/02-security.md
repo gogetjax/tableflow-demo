@@ -53,7 +53,8 @@ Roles below use Confluent's predefined roles. Grant at the narrowest scope that 
 | `sa-flink` | DeveloperRead | SR subjects `orders.raw-*` | read source schema |
 | `sa-flink` | DeveloperWrite | SR subjects `orders.clean-*`, `orders.rejected-*` | Flink registers sink schemas |
 | `sa-terraform-ci` | EnvironmentAdmin | environment `tableflow-demo` | create topics, SR subjects, RBAC bindings, Flink compute pool, Tableflow enablement, catalog integration |
-| `sa-terraform-ci` | Assigner | provider integrations | required to attach provider integrations to Tableflow / catalog integration |
+| `sa-terraform-ci` | DeveloperRead + DeveloperWrite | topic `orders_tableflow_errors` | Tableflow `LOG` mode: the enabling account (owner of the Tableflow API key) must be able to write the DLQ topic, else the topic fails with "unable to set up the DLQ topic" |
+| `sa-terraform-ci` | Assigner | provider integrations | listed as a prerequisite in the design; not needed in practice: EnvironmentAdmin was sufficient to create `confluent_tableflow_topic` and `confluent_catalog_integration` referencing both provider integrations (Phase 5) |
 | Human cloud admin | OrganizationAdmin | org | break-glass only; create `sa-terraform-ci` and the provider integration once |
 
 Notes:
@@ -108,7 +109,7 @@ Explicit denies, in this order of importance:
 
 1. Deny `s3:PutObject`, `s3:DeleteObject*`, `s3:AbortMultipartUpload` to any principal except `tableflow-writer` and (for lifecycle/teardown only) `github-actions-terraform`.
 2. Deny all access unless `aws:SecureTransport` is true.
-3. Deny `s3:PutObject` whose encryption header names anything other than SSE-S3 or SSE-KMS. Requests with no header fall through to bucket default encryption (SSE-S3), so this never blocks Tableflow, whose header behavior is not documented. A strict "header required" deny was considered and rejected for that reason.
+3. Deny `s3:PutObject` whose encryption header is present and names anything other than SSE-S3 or SSE-KMS (`Null = false` AND `StringNotEquals`). Requests with no header fall through to bucket default encryption (SSE-S3). Tableflow sends no header. **Phase 5 finding:** the first version used `StringNotEqualsIfExists` alone, which evaluates to true when the key is absent, so every Tableflow write was denied ("Tableflow cannot write to the S3 bucket due to insufficient permissions"); the IAM policy simulator with and without the header context pinpointed it. A strict "header required" deny would block Tableflow outright.
 4. Allow `s3:GetObject` and `s3:ListBucket` to `consumer-iceberg`, `consumer-delta`.
 
 Bucket settings: versioning on (protects against accidental deletes), Block Public Access all four, Object Ownership = bucket owner enforced, lifecycle rule **none** on Tableflow prefixes (Tableflow manages retention; a lifecycle rule would corrupt tables).

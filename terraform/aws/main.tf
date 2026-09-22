@@ -104,8 +104,10 @@ data "aws_iam_policy_document" "lake" {
   }
 
   # 3. Reject any explicit request for an encryption mode other than SSE-S3 / SSE-KMS.
-  #    Requests with no header fall through to bucket default encryption (AES256), so
-  #    this never blocks Tableflow, whose PutObject header behavior is not documented.
+  #    Requests with no header fall through to bucket default encryption (AES256). Tableflow
+  #    sends no header, so the two conditions below (ANDed) deny only when the header is
+  #    present AND not an allowed value. Note: "StringNotEqualsIfExists" alone evaluates to
+  #    TRUE when the key is absent and denied every Tableflow write (Phase 5 finding).
   statement {
     sid    = "DenyUnencryptedPutHeader"
     effect = "Deny"
@@ -116,7 +118,12 @@ data "aws_iam_policy_document" "lake" {
     actions   = ["s3:PutObject"]
     resources = ["${aws_s3_bucket.lake.arn}/*"]
     condition {
-      test     = "StringNotEqualsIfExists"
+      test     = "Null"
+      variable = "s3:x-amz-server-side-encryption"
+      values   = ["false"]
+    }
+    condition {
+      test     = "StringNotEquals"
       variable = "s3:x-amz-server-side-encryption"
       values   = ["AES256", "aws:kms"]
     }

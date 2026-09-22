@@ -62,7 +62,7 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 | 2 Confluent foundation (`terraform/confluent`) | applied: env, Standard cluster, SR subjects, 3 SAs + RBAC, 5 CFU pool, 2 provider integrations; AWS trust finalized |
 | 3 Producer (`shadowtraffic/`) | verified: Avro via SR, dirty-row rates observed on 1,000 events |
 | 4 Flink (`flink/`) | running: 2 DDL + 2 INSERT statements as `sa-flink`; acceptance checks in docs/04 |
-| 5 Tableflow + Glue | pending |
+| 5 Tableflow + Glue (`terraform/confluent/tableflow.tf`, `catalog.tf`) | running: `orders.clean` BYOS, ICEBERG + DELTA, Glue sync |
 | 6 Consumers | pending |
 | 7 CI polish | pending |
 
