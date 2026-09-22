@@ -1,0 +1,209 @@
+{
+  "generators": [
+    {
+      "topic": "orders.raw",
+      "vars": {
+        "orderId": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 95,
+              "value": {
+                "_gen": "uuid"
+              }
+            },
+            {
+              "weight": 5,
+              "value": {
+                "_gen": "lookup",
+                "topic": "orders.raw",
+                "path": [
+                  "key",
+                  "order_id"
+                ],
+                "strategy": "random"
+              }
+            }
+          ]
+        }
+      },
+      "key": {
+        "order_id": {
+          "_gen": "var",
+          "var": "orderId"
+        }
+      },
+      "value": {
+        "order_id": {
+          "_gen": "var",
+          "var": "orderId"
+        },
+        "customer_id": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 98,
+              "value": {
+                "_gen": "string",
+                "expr": "cust-#{Number.numberBetween '1000','1999'}"
+              }
+            },
+            {
+              "weight": 2,
+              "value": null
+            }
+          ]
+        },
+        "product_id": {
+          "_gen": "string",
+          "expr": "sku-#{Number.numberBetween '100','999'}"
+        },
+        "quantity": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 97,
+              "value": {
+                "_gen": "uniformDistribution",
+                "bounds": [
+                  1,
+                  5
+                ],
+                "decimals": 0
+              }
+            },
+            {
+              "weight": 2,
+              "value": 0
+            },
+            {
+              "weight": 1,
+              "value": -1
+            }
+          ]
+        },
+        "unit_price_cents": {
+          "_gen": "uniformDistribution",
+          "bounds": [
+            199,
+            49999
+          ],
+          "decimals": 0
+        },
+        "currency": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 95,
+              "value": "USD"
+            },
+            {
+              "weight": 5,
+              "value": "usd"
+            }
+          ]
+        },
+        "ordered_at": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 99,
+              "value": {
+                "_gen": "add",
+                "args": [
+                  {
+                    "_gen": "now"
+                  },
+                  {
+                    "_gen": "uniformDistribution",
+                    "bounds": [
+                      -60000,
+                      0
+                    ],
+                    "decimals": 0
+                  }
+                ]
+              }
+            },
+            {
+              "weight": 1,
+              "value": {
+                "_gen": "add",
+                "args": [
+                  {
+                    "_gen": "now"
+                  },
+                  31536000000
+                ]
+              }
+            }
+          ]
+        },
+        "status": {
+          "_gen": "oneOf",
+          "choices": [
+            "PLACED",
+            "PAID",
+            "SHIPPED",
+            "CANCELLED"
+          ]
+        },
+        "source": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 6,
+              "value": "web"
+            },
+            {
+              "weight": 3,
+              "value": "mobile"
+            },
+            {
+              "weight": 1,
+              "value": "pos"
+            }
+          ]
+        }
+      },
+      "localConfigs": {
+        "throttleMs": 300,
+        "maxHistoryEvents": 2000,
+        "avroSchemaHint": {
+          "key": { "_gen": "loadJsonFile", "file": "/home/schemas/orders.raw-key.avsc" },
+          "value": { "_gen": "loadJsonFile", "file": "/home/schemas/orders.raw-value.avsc" }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "kafka": {
+      "kind": "kafka",
+      "producerConfigs": {
+        "bootstrap.servers": {
+          "_gen": "env",
+          "var": "KAFKA_BOOTSTRAP"
+        },
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "PLAIN",
+        "sasl.jaas.config": {
+          "_gen": "env",
+          "var": "KAFKA_JAAS_CONFIG"
+        },
+        "key.serializer": "io.confluent.kafka.serializers.KafkaAvroSerializer",
+        "value.serializer": "io.confluent.kafka.serializers.KafkaAvroSerializer",
+        "schema.registry.url": {
+          "_gen": "env",
+          "var": "SCHEMA_REGISTRY_URL"
+        },
+        "basic.auth.credentials.source": "USER_INFO",
+        "basic.auth.user.info": {
+          "_gen": "env",
+          "var": "SR_USER_INFO"
+        },
+        "auto.register.schemas": "false",
+        "use.latest.version": "true"
+      }
+    }
+  }
+}

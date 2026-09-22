@@ -39,6 +39,17 @@ resource "confluent_role_binding" "shadowtraffic_read_raw_subjects" {
   crn_pattern = "${local.sr_crn}/subject=orders.raw-*"
 }
 
+# ShadowTraffic (2.1.4) always calls Schema Registry "register" for the schema it will
+# produce with, even when the subject exists and the serializer has auto.register.schemas=false.
+# Registering a byte-identical schema returns the existing ID and creates no new version, but
+# the call itself needs Write. Terraform stays the source of truth: the avroSchemaHint loads the
+# same .avsc Terraform registered, and the Phase 3 acceptance check is "still version 1".
+resource "confluent_role_binding" "shadowtraffic_write_raw_subjects" {
+  principal   = "User:${confluent_service_account.shadowtraffic.id}"
+  role_name   = "DeveloperWrite"
+  crn_pattern = "${local.sr_crn}/subject=orders.raw-*"
+}
+
 # --- sa-flink ------------------------------------------------------------------------
 
 resource "confluent_role_binding" "flink_developer" {
@@ -53,16 +64,45 @@ resource "confluent_role_binding" "flink_read_raw" {
   crn_pattern = "${local.kafka_crn}/topic=${confluent_kafka_topic.orders_raw.topic_name}"
 }
 
+# Flink CREATE TABLE creates the sink topics, which needs DeveloperManage on the topic name
+# ("Permission denied to CREATE on Kafka topic" otherwise).
+resource "confluent_role_binding" "flink_manage_clean" {
+  principal   = "User:${confluent_service_account.flink.id}"
+  role_name   = "DeveloperManage"
+  crn_pattern = "${local.kafka_crn}/topic=orders.clean"
+}
+
+resource "confluent_role_binding" "flink_manage_rejected" {
+  principal   = "User:${confluent_service_account.flink.id}"
+  role_name   = "DeveloperManage"
+  crn_pattern = "${local.kafka_crn}/topic=orders.rejected"
+}
+
 resource "confluent_role_binding" "flink_write_clean" {
   principal   = "User:${confluent_service_account.flink.id}"
   role_name   = "DeveloperWrite"
-  crn_pattern = "${local.kafka_crn}/topic=${confluent_kafka_topic.orders_clean.topic_name}"
+  crn_pattern = "${local.kafka_crn}/topic=orders.clean"
 }
 
 resource "confluent_role_binding" "flink_write_rejected" {
   principal   = "User:${confluent_service_account.flink.id}"
   role_name   = "DeveloperWrite"
-  crn_pattern = "${local.kafka_crn}/topic=${confluent_kafka_topic.orders_rejected.topic_name}"
+  crn_pattern = "${local.kafka_crn}/topic=orders.rejected"
+}
+
+# Flink writes with Kafka transactions (exactly-once). Required per
+# https://docs.confluent.io/cloud/current/flink/operate-and-deploy/flink-rbac.html
+# ("Transactional Id authorization failed" otherwise).
+resource "confluent_role_binding" "flink_txn_read" {
+  principal   = "User:${confluent_service_account.flink.id}"
+  role_name   = "DeveloperRead"
+  crn_pattern = "${local.kafka_crn}/transactional-id=_confluent-flink_*"
+}
+
+resource "confluent_role_binding" "flink_txn_write" {
+  principal   = "User:${confluent_service_account.flink.id}"
+  role_name   = "DeveloperWrite"
+  crn_pattern = "${local.kafka_crn}/transactional-id=_confluent-flink_*"
 }
 
 resource "confluent_role_binding" "flink_read_raw_subjects" {
@@ -102,16 +142,11 @@ resource "confluent_role_binding" "terraform_ci_assigner_flink_sa" {
 # Secrets live in Terraform state (encrypted S3) and in sensitive outputs. They are copied
 # to GitHub Environment secrets by the phase runbook and never written to the repo.
 
-# Cloud API key for CI. Replaces the human bootstrap key after Phase 2.
-resource "confluent_api_key" "terraform_ci_cloud" {
-  display_name = "${var.name_prefix}-sa-terraform-ci-cloud"
-  description  = "tableflow-demo: Cloud API key for Terraform in GitHub Actions"
-  owner {
-    id          = confluent_service_account.terraform_ci.id
-    api_version = confluent_service_account.terraform_ci.api_version
-    kind        = confluent_service_account.terraform_ci.kind
-  }
-}
+# The sa-terraform-ci Cloud API key is NOT managed here. A service account cannot read
+# Cloud API keys through the API (only cluster-scoped ones), so when CI runs as that SA
+# Terraform sees the key as missing and tries to recreate it (403). Create it once by hand:
+#   confluent api-key create --resource cloud --service-account <sa-terraform-ci id>
+# and store it in the prod GitHub Environment (terraform/README.md).
 
 # Kafka + SR keys for CI, used by topic/schema resources in this root.
 resource "confluent_api_key" "terraform_ci_kafka" {

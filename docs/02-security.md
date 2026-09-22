@@ -43,9 +43,12 @@ Roles below use Confluent's predefined roles. Grant at the narrowest scope that 
 |---|---|---|---|
 | `sa-shadowtraffic` | DeveloperWrite | topic `orders.raw` | produce |
 | `sa-shadowtraffic` | DeveloperRead | SR subjects `orders.raw-*` | serializer looks up pre-registered schema IDs |
+| `sa-shadowtraffic` | DeveloperWrite | SR subjects `orders.raw-*` | ShadowTraffic registers its (identical) schema at startup and aborts if refused; see docs/03 |
 | `sa-flink` | FlinkDeveloper | environment | run statements |
 | `sa-flink` | DeveloperRead | topic `orders.raw` | source |
 | `sa-flink` | DeveloperWrite | topics `orders.clean`, `orders.rejected` | sinks |
+| `sa-flink` | DeveloperManage | topics `orders.clean`, `orders.rejected` | Flink `CREATE TABLE` creates the sink topics |
+| `sa-flink` | DeveloperRead + DeveloperWrite | transactional-id `_confluent-flink_*` | Flink writes with Kafka transactions ([Flink RBAC](https://docs.confluent.io/cloud/current/flink/operate-and-deploy/flink-rbac.html)) |
 | `sa-flink` | DeveloperRead | SR subjects `orders.raw-*` | read source schema |
 | `sa-flink` | DeveloperWrite | SR subjects `orders.clean-*`, `orders.rejected-*` | Flink registers sink schemas |
 | `sa-terraform-ci` | EnvironmentAdmin | environment `tableflow-demo` | create topics, SR subjects, RBAC bindings, Flink compute pool, Tableflow enablement, catalog integration |
@@ -58,6 +61,7 @@ Notes:
 - Tableflow enablement and catalog integration are cluster-level operations. Confluent docs list CloudClusterAdmin + Assigner on provider integrations as prerequisites for catalog integrations; EnvironmentAdmin covers CloudClusterAdmin. If you want CI narrower, replace EnvironmentAdmin with CloudClusterAdmin on the cluster plus explicit SR and Flink grants, and test.
 - Schema Registry: set global compatibility to `BACKWARD` (default) or `FULL`. Terraform owns the subjects; the producer never registers schemas (`auto.register.schemas=false`, `use.latest.version=true`). This is the governance story.
 - API keys for `sa-shadowtraffic` and `sa-flink` are created by Terraform and written only to GitHub Environment secrets. Rotate by re-running the key resource.
+- The `sa-terraform-ci` **Cloud** API key is created by hand (`confluent api-key create --resource cloud --service-account <id>`), not by Terraform: a service account cannot read Cloud API keys through the API, so a Terraform-managed one is seen as missing on every CI run and recreation is refused (403).
 
 ## AWS IAM
 

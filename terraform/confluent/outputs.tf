@@ -61,11 +61,6 @@ output "provider_integration_glue_external_id" {
 
 # --- sensitive: API keys. Copied to GitHub Environment secrets, never to the repo. -----
 
-output "terraform_ci_cloud_api_key" {
-  value     = { key = confluent_api_key.terraform_ci_cloud.id, secret = confluent_api_key.terraform_ci_cloud.secret }
-  sensitive = true
-}
-
 output "shadowtraffic_kafka_api_key" {
   value     = { key = confluent_api_key.shadowtraffic_kafka.id, secret = confluent_api_key.shadowtraffic_kafka.secret }
   sensitive = true
