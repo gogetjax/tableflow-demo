@@ -1,0 +1,20 @@
+{
+  "type": "record",
+  "name": "OrderRaw",
+  "namespace": "demo.orders",
+  "doc": "Raw order event from ShadowTraffic. Deliberately dirty: duplicate order_id, null customer_id, non-positive quantity, lowercase currency, far-future ordered_at. See docs/03-producer-spec.md.",
+  "fields": [
+    { "name": "order_id", "type": "string", "doc": "UUID. ~5% are re-emitted duplicates." },
+    { "name": "customer_id", "type": ["null", "string"], "default": null, "doc": "~2% null." },
+    { "name": "product_id", "type": "string" },
+    { "name": "quantity", "type": "int", "doc": "~3% zero or negative." },
+    { "name": "unit_price_cents", "type": "long" },
+    { "name": "currency", "type": "string", "doc": "ISO 4217. ~5% lowercase." },
+    { "name": "ordered_at", "type": { "type": "long", "logicalType": "timestamp-millis" }, "doc": "~1% far future." },
+    {
+      "name": "status",
+      "type": { "type": "enum", "name": "OrderStatus", "symbols": ["PLACED", "PAID", "SHIPPED", "CANCELLED"] }
+    },
+    { "name": "source", "type": "string", "doc": "Originating channel, e.g. web, mobile, pos." }
+  ]
+}

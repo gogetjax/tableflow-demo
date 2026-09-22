@@ -47,6 +47,8 @@ jobs:
         env:
           TF_VAR_confluent_pi_principal_arn: ${{ vars.TF_VAR_CONFLUENT_PI_PRINCIPAL_ARN }}
           TF_VAR_confluent_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_PI_EXTERNAL_ID }}
+          TF_VAR_confluent_glue_pi_principal_arn: ${{ vars.TF_VAR_CONFLUENT_GLUE_PI_PRINCIPAL_ARN }}
+          TF_VAR_confluent_glue_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_GLUE_PI_EXTERNAL_ID }}
           TF_VAR_kafka_cluster_id: ${{ vars.TF_VAR_KAFKA_CLUSTER_ID || '*' }}
         run: |
           terraform plan -no-color -out=tfplan | tee plan.txt
@@ -58,6 +60,45 @@ jobs:
             const fs = require('fs');
             const plan = fs.readFileSync('terraform/aws/plan.txt', 'utf8');
             const body = `### terraform/aws plan\n\n\`${{ steps.plan.outputs.summary }}\`\n\n<details><summary>Full plan</summary>\n\n\`\`\`\n${plan.slice(0, 60000)}\n\`\`\`\n\n</details>`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, body,
+            });
+
+  plan-confluent:
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: terraform/confluent
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.13.3"
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: init
+        run: terraform init
+      - name: validate
+        run: terraform validate
+      - name: plan
+        id: plan
+        env:
+          CONFLUENT_CLOUD_API_KEY: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
+          CONFLUENT_CLOUD_API_SECRET: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
+        run: |
+          terraform plan -no-color -out=tfplan | tee plan.txt
+          echo "summary=$(grep -E '^(Plan:|No changes)' plan.txt | head -1)" >> "$GITHUB_OUTPUT"
+      - name: comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/confluent/plan.txt', 'utf8');
+            const body = `### terraform/confluent plan\n\n\`${{ steps.plan.outputs.summary }}\`\n\n<details><summary>Full plan</summary>\n\n\`\`\`\n${plan.slice(0, 60000)}\n\`\`\`\n\n</details>`;
             await github.rest.issues.createComment({
               owner: context.repo.owner, repo: context.repo.repo,
               issue_number: context.issue.number, body,

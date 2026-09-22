@@ -26,9 +26,11 @@ Confluent announced dual format GA in October 2025: one topic can be materialize
 
 Terraform provider resources involved (names known; **verify current argument names on the registry page for the pinned provider version** — open question 09-Q2):
 
-- `confluent_provider_integration` — AWS, `customer_role_arn` = `tableflow-writer` ARN
-- `confluent_tableflow_topic` — `byos_aws { bucket_name, provider_integration_id }`, `table_formats`, `retention_ms`, error handling
-- `confluent_catalog_integration` — `aws_glue { provider_integration_id }` (may reference a second provider integration for `tableflow-glue-writer`)
+- `confluent_provider_integration` — AWS, `customer_role_arn` = `tableflow-writer` ARN. Applied in Phase 2 (two of them: `cspi-jj1d8` for S3, `cspi-rn930` for Glue).
+- `confluent_tableflow_topic` — `byob_aws { bucket_name, provider_integration_id }` (note **byob**, not byos), `table_formats = ["ICEBERG", "DELTA"]`, `retention_ms`, `error_handling { mode, log_target }`. Needs a Tableflow API key (`credentials` block or provider-level `tableflow_api_key`).
+- `confluent_catalog_integration` — `aws_glue { provider_integration_id }` referencing the Glue provider integration. Also needs the Tableflow API key.
+
+Argument names above verified against provider 2.86.0 docs (Q2).
 
 Chicken-and-egg: the provider integration must exist before the IAM trust policy can be finalized (Confluent hands back the principal and external ID). Sequence in 07.
 

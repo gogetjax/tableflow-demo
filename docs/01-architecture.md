@@ -85,8 +85,11 @@ The only link between zones is Confluent assuming an IAM role in the AWS account
 | Thing | Value |
 |---|---|
 | Region | `us-east-1` (cluster and bucket must match) |
-| Confluent env | `tableflow-demo` |
-| Kafka cluster | `tableflow-demo` (confirm Tableflow availability for the chosen SKU and region) |
+| Confluent env | `cjackson-tableflow-demo` (`env-876zz7`). Every Confluent display name carries the `cjackson-` prefix because the org is shared. |
+| Kafka cluster | `cjackson-tableflow-demo` (`lkc-q2zqngd`), **Standard**, single zone. Basic was tried first and rejected topic-scoped RBAC roles. Tableflow is supported on every cluster type in us-east-1. |
+| Service accounts | `cjackson-sa-shadowtraffic`, `cjackson-sa-flink`, `cjackson-sa-terraform-ci` (docs refer to them without the prefix) |
+| Flink compute pool | `cjackson-tableflow-demo`, 5 CFU (`lfcp-o3z7jop`) |
+| Provider integrations | `cjackson-tableflow-s3` → `tableflow-writer`, `cjackson-tableflow-glue` → `tableflow-glue-writer` (one per role; `customer_role_arn` must be unique per environment) |
 | Topics | `orders.raw`, `orders.clean`, `orders.rejected` |
 | SR subjects | `orders.raw-key`, `orders.raw-value`, `orders.clean-key`, `orders.clean-value` |
 | S3 bucket | `tableflow-demo-lake-<account-id>` |

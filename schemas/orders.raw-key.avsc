@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "OrderKey",
+  "namespace": "demo.orders",
+  "doc": "Key for orders.raw and orders.clean. One field so Flink can declare PRIMARY KEY (order_id).",
+  "fields": [
+    { "name": "order_id", "type": "string" }
+  ]
+}

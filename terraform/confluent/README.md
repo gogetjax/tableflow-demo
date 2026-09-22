@@ -1,3 +1,20 @@
 # terraform/confluent
 
-Root module for Confluent Cloud: environment, Kafka cluster, Schema Registry subjects from `schemas/`, topics, service accounts and role bindings, Flink compute pool, provider integration, Tableflow enablement, and the Glue catalog integration. Populated in Phase 2 by [prompts/02-confluent-foundation.md](../../prompts/02-confluent-foundation.md) and extended in Phase 5. The pinned `confluentinc/confluent` provider version and its registry doc URL are recorded here once chosen. Layout: [docs/07-terraform-cicd.md](../../docs/07-terraform-cicd.md). RBAC table: [docs/02-security.md](../../docs/02-security.md). Tableflow resources: [docs/05-tableflow-spec.md](../../docs/05-tableflow-spec.md).
+Root module for Confluent Cloud. Applied in Phase 2. Auth is `CONFLUENT_CLOUD_API_KEY/SECRET` from the environment (locally a temporary admin key; in CI the `sa-terraform-ci` key from the `prod` GitHub Environment).
+
+Provider: `confluentinc/confluent` **2.86.0**. Registry docs for this version: https://registry.terraform.io/providers/confluentinc/confluent/2.86.0/docs (source: the provider repo's `docs/` directory at tag `v2.86.0`).
+
+| File | Holds |
+|---|---|
+| `versions.tf` | pins, S3 backend, remote-state read of the AWS root |
+| `env.tf` | environment (Stream Governance Essentials), Schema Registry data source, Standard Kafka cluster |
+| `topics.tf` | `orders.raw`, `orders.clean`, `orders.rejected`, `orders.tableflow-errors` (6 partitions, 7-day retention) |
+| `schemas.tf` | `orders.raw-key` / `orders.raw-value` from `../../schemas/*.avsc`, compatibility `BACKWARD` |
+| `rbac.tf` | service accounts, role bindings per [docs/02-security.md](../../docs/02-security.md), API keys (sensitive outputs) |
+| `flink.tf` | 5 CFU compute pool |
+| `provider-integration.tf` | two AWS provider integrations (S3 role, Glue role) |
+| `tableflow.tf`, `catalog.tf` | Phase 5 |
+
+Every display name is prefixed with `var.name_prefix` (`cjackson`) because the Confluent org is shared. The cluster is Standard, not Basic: Basic rejects topic-scoped RBAC roles.
+
+Design: [docs/07-terraform-cicd.md](../../docs/07-terraform-cicd.md). Tableflow resources: [docs/05-tableflow-spec.md](../../docs/05-tableflow-spec.md).

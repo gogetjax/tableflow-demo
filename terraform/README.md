@@ -30,21 +30,33 @@ Applies run from GitHub Actions on `main` (`tf-apply-aws.yml`) once the `github-
 
 ## Two-pass trust bootstrap (AWS → Confluent → AWS)
 
-The Confluent provider integration needs the `tableflow-writer` role ARN to exist, and the role's trust policy needs the provider integration's IAM principal and external ID. So:
+The Confluent provider integrations need the writer role ARNs to exist, and the roles' trust policies need each integration's IAM principal and external ID. So:
 
 1. `terraform/aws` apply with default variables. Writer roles get a deny-all placeholder trust policy.
-2. `terraform/confluent` apply. Creates the provider integration and outputs `provider_integration_iam_role_arn` and `provider_integration_external_id`.
+2. `terraform/confluent` apply. Creates two provider integrations (S3, Glue) and outputs their `*_iam_role_arn` and `*_external_id`.
 3. `terraform/aws` re-apply with the real trust:
 
 ```bash
 cd terraform/aws
 terraform apply \
-  -var="confluent_pi_principal_arn=$(terraform -chdir=../confluent output -raw provider_integration_iam_role_arn)" \
-  -var="confluent_pi_external_id=$(terraform -chdir=../confluent output -raw provider_integration_external_id)" \
+  -var="confluent_pi_principal_arn=$(terraform -chdir=../confluent output -raw provider_integration_s3_iam_role_arn)" \
+  -var="confluent_pi_external_id=$(terraform -chdir=../confluent output -raw provider_integration_s3_external_id)" \
+  -var="confluent_glue_pi_principal_arn=$(terraform -chdir=../confluent output -raw provider_integration_glue_iam_role_arn)" \
+  -var="confluent_glue_pi_external_id=$(terraform -chdir=../confluent output -raw provider_integration_glue_external_id)" \
   -var="kafka_cluster_id=$(terraform -chdir=../confluent output -raw kafka_cluster_id)"
 ```
 
-In CI those three values are set as `TF_VAR_*` variables on the `prod` environment after step 2, so step 3 is a normal apply.
+In CI those five values are `TF_VAR_*` variables on the `prod` environment (set in Phase 2), so step 3 is the normal `tf-apply-aws.yml` run.
+
+## Confluent root
+
+```bash
+cd terraform/confluent
+export CONFLUENT_CLOUD_API_KEY=... CONFLUENT_CLOUD_API_SECRET=...   # never in a file inside the repo
+terraform init && terraform plan
+```
+
+Applies run from `tf-apply-confluent.yml` with the `sa-terraform-ci` key. Sensitive outputs (`terraform output -json <name>`) are the source for the GitHub Environment secrets.
 
 ## Provider pins
 
