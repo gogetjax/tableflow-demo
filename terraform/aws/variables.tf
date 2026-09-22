@@ -10,6 +10,16 @@ variable "github_repo" {
   default     = "gogetjax/tableflow-demo"
 }
 
+variable "github_repo_immutable" {
+  description = <<-EOT
+    The repo's immutable OIDC subject prefix, owner@id/repo@id. GitHub emits this form when
+    "use_immutable_subject" is on (GET /repos/{o}/{r}/actions/oidc/customization/sub).
+    Both this and the plain form are accepted in the trust policies.
+  EOT
+  type        = string
+  default     = "gogetjax@180248147/tableflow-demo@1382245757"
+}
+
 variable "confluent_pi_principal_arn" {
   description = <<-EOT
     IAM role ARN Confluent hands back after the provider integration is created
@@ -22,6 +32,18 @@ variable "confluent_pi_principal_arn" {
 
 variable "confluent_pi_external_id" {
   description = "External ID from the provider integration (aws.external_id). Empty on the first apply."
+  type        = string
+  default     = ""
+}
+
+variable "confluent_glue_pi_principal_arn" {
+  description = "IAM principal of the second provider integration (Glue). Falls back to confluent_pi_principal_arn when empty."
+  type        = string
+  default     = ""
+}
+
+variable "confluent_glue_pi_external_id" {
+  description = "External ID of the second provider integration (Glue). Falls back to confluent_pi_external_id when empty."
   type        = string
   default     = ""
 }

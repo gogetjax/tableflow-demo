@@ -31,7 +31,10 @@ data "aws_iam_policy_document" "github_terraform_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:prod"]
+      values = [
+        "repo:${var.github_repo}:environment:prod",
+        "repo:${var.github_repo_immutable}:environment:prod",
+      ]
     }
   }
 }
@@ -171,7 +174,10 @@ data "aws_iam_policy_document" "github_consumers_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:consumers"]
+      values = [
+        "repo:${var.github_repo}:environment:consumers",
+        "repo:${var.github_repo_immutable}:environment:consumers",
+      ]
     }
   }
 }

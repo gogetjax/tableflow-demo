@@ -6,46 +6,58 @@
 # After the provider integration exists, re-apply with the principal ARN and external ID.
 
 locals {
+  glue_pi_principal_arn = var.confluent_glue_pi_principal_arn != "" ? var.confluent_glue_pi_principal_arn : var.confluent_pi_principal_arn
+  glue_pi_external_id   = var.confluent_glue_pi_external_id != "" ? var.confluent_glue_pi_external_id : var.confluent_pi_external_id
+
   pi_trust_ready = var.confluent_pi_principal_arn != "" && var.confluent_pi_external_id != ""
-}
 
-data "aws_iam_policy_document" "pi_trust_placeholder" {
-  statement {
-    effect = "Deny"
-    principals {
-      type        = "AWS"
-      identifiers = ["*"]
-    }
-    actions = ["sts:AssumeRole"]
-  }
-}
+  # Trust documents rendered as JSON. Shape from the Confluent provider-integration guide:
+  # AssumeRole with sts:ExternalId, plus TagSession for the same principal.
+  pi_trust_placeholder = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Deny"
+      Principal = { AWS = "*" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
 
-data "aws_iam_policy_document" "pi_trust_real" {
-  statement {
-    effect = "Allow"
-    principals {
-      type        = "AWS"
-      identifiers = [var.confluent_pi_principal_arn != "" ? var.confluent_pi_principal_arn : "arn:aws:iam::000000000000:role/placeholder"]
-    }
-    actions = ["sts:AssumeRole"]
-    condition {
-      test     = "StringEquals"
-      variable = "sts:ExternalId"
-      values   = [var.confluent_pi_external_id != "" ? var.confluent_pi_external_id : "placeholder"]
-    }
-  }
-  statement {
-    effect = "Allow"
-    principals {
-      type        = "AWS"
-      identifiers = [var.confluent_pi_principal_arn != "" ? var.confluent_pi_principal_arn : "arn:aws:iam::000000000000:role/placeholder"]
-    }
-    actions = ["sts:TagSession"]
-  }
-}
+  pi_trust_s3 = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { AWS = var.confluent_pi_principal_arn }
+        Action    = "sts:AssumeRole"
+        Condition = { StringEquals = { "sts:ExternalId" = var.confluent_pi_external_id } }
+      },
+      {
+        Effect    = "Allow"
+        Principal = { AWS = var.confluent_pi_principal_arn }
+        Action    = "sts:TagSession"
+      },
+    ]
+  })
 
-locals {
-  pi_trust_json = local.pi_trust_ready ? data.aws_iam_policy_document.pi_trust_real.json : data.aws_iam_policy_document.pi_trust_placeholder.json
+  pi_trust_glue = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { AWS = local.glue_pi_principal_arn }
+        Action    = "sts:AssumeRole"
+        Condition = { StringEquals = { "sts:ExternalId" = local.glue_pi_external_id } }
+      },
+      {
+        Effect    = "Allow"
+        Principal = { AWS = local.glue_pi_principal_arn }
+        Action    = "sts:TagSession"
+      },
+    ]
+  })
+
+  writer_trust_json      = local.pi_trust_ready ? local.pi_trust_s3 : local.pi_trust_placeholder
+  glue_writer_trust_json = local.pi_trust_ready ? local.pi_trust_glue : local.pi_trust_placeholder
 }
 
 # --- tableflow-writer: S3 only ------------------------------------------------
@@ -56,7 +68,7 @@ locals {
 resource "aws_iam_role" "tableflow_writer" {
   name               = "tableflow-writer"
   description        = "Assumed by Confluent Tableflow via provider integration. S3 write to the lake bucket only."
-  assume_role_policy = local.pi_trust_json
+  assume_role_policy = local.writer_trust_json
 }
 
 data "aws_iam_policy_document" "tableflow_writer" {
@@ -103,7 +115,7 @@ resource "aws_iam_role_policy_attachment" "tableflow_writer" {
 resource "aws_iam_role" "tableflow_glue_writer" {
   name               = "tableflow-glue-writer"
   description        = "Assumed by Confluent Tableflow via provider integration. Glue catalog sync only."
-  assume_role_policy = local.pi_trust_json
+  assume_role_policy = local.glue_writer_trust_json
 }
 
 data "aws_iam_policy_document" "tableflow_glue_writer" {
