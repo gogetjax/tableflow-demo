@@ -48,6 +48,7 @@ Roles below use Confluent's predefined roles. Grant at the narrowest scope that 
 | `sa-flink` | DeveloperRead | topic `orders.raw` | source |
 | `sa-flink` | DeveloperWrite | topics `orders.clean`, `orders.rejected` | sinks |
 | `sa-flink` | DeveloperManage | topics `orders.clean`, `orders.rejected` | Flink `CREATE TABLE` creates the sink topics |
+| `sa-flink` | DeveloperRead | topics `orders.clean`, `orders.rejected` | verification queries and any downstream statement run as `sa-flink` |
 | `sa-flink` | DeveloperRead + DeveloperWrite | transactional-id `_confluent-flink_*` | Flink writes with Kafka transactions ([Flink RBAC](https://docs.confluent.io/cloud/current/flink/operate-and-deploy/flink-rbac.html)) |
 | `sa-flink` | DeveloperRead | SR subjects `orders.raw-*` | read source schema |
 | `sa-flink` | DeveloperWrite | SR subjects `orders.clean-*`, `orders.rejected-*` | Flink registers sink schemas |
