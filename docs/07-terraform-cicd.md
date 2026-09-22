@@ -17,7 +17,7 @@ terraform/
     outputs.tf             # role ARNs, bucket name, subnet/SG ids
   confluent/               # state: s3 backend, key confluent/terraform.tfstate
     env.tf                 # environment, SR (Essentials), cluster
-    topics.tf              # orders.raw, orders.tableflow-errors (orders.clean/rejected are created by Flink DDL)
+    topics.tf              # orders.raw, orders_tableflow_errors (orders.clean/rejected are created by Flink DDL)
     schemas.tf             # SR subjects from ../../schemas/*.avsc, compatibility
     rbac.tf                # service accounts, role bindings, API keys → outputs (sensitive)
     flink.tf               # compute pool
@@ -55,7 +55,7 @@ Step 1 ran locally in Phase 1 because it creates the CI role itself. Step 2 ran 
 
 Auth:
 - AWS: OIDC to `github-actions-terraform`. No static keys. Role ARN in the `prod` environment variable `AWS_TERRAFORM_ROLE_ARN`; the two PI principal/external-ID pairs and the cluster ID in `TF_VAR_CONFLUENT_PI_*`, `TF_VAR_CONFLUENT_GLUE_PI_*`, `TF_VAR_KAFKA_CLUSTER_ID` (set in Phase 2).
-- Confluent: `CONFLUENT_CLOUD_API_KEY/SECRET` for `sa-terraform-ci` in the `prod` GitHub Environment (set in Phase 2 from the Confluent root's sensitive output). The first Confluent apply ran locally under a temporary Cloud API key for the human admin, which was deleted once CI ran green on the SA key.
+- Confluent: `CONFLUENT_CLOUD_API_KEY/SECRET` for `sa-terraform-ci` in the `prod` GitHub Environment, plus `TABLEFLOW_API_KEY/SECRET` (a Tableflow-scoped key for the same service account, created by hand like the Cloud key; passed to Terraform as `TF_VAR_tableflow_api_*` for `confluent_tableflow_topic` and `confluent_catalog_integration`). The first Confluent apply ran locally under a temporary Cloud API key for the human admin, which was deleted once CI ran green on the SA key.
 - Consumer roles: separate OIDC trust conditions (`environment:consumers`) so the Terraform role can't be used to read data and vice versa.
 
 ## Pins

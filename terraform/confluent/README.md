@@ -8,7 +8,7 @@ Provider: `confluentinc/confluent` **2.86.0**. Registry docs for this version: h
 |---|---|
 | `versions.tf` | pins, S3 backend, remote-state read of the AWS root |
 | `env.tf` | environment (Stream Governance Essentials), Schema Registry data source, Standard Kafka cluster |
-| `topics.tf` | `orders.raw`, `orders.clean`, `orders.rejected`, `orders.tableflow-errors` (6 partitions, 7-day retention) |
+| `topics.tf` | `orders.raw`, `orders_tableflow_errors` (6 partitions, 7-day retention). `orders.clean` and `orders.rejected` are created by the Flink DDL. |
 | `schemas.tf` | `orders.raw-key` / `orders.raw-value` from `../../schemas/*.avsc`, compatibility `BACKWARD` |
 | `rbac.tf` | service accounts, role bindings per [docs/02-security.md](../../docs/02-security.md), API keys (sensitive outputs) |
 | `flink.tf` | 5 CFU compute pool |

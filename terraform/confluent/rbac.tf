@@ -145,6 +145,22 @@ resource "confluent_role_binding" "terraform_ci_env_admin" {
   crn_pattern = confluent_environment.demo.resource_name
 }
 
+# Tableflow LOG error handling: "the account enabling ... must have write permissions on the
+# DLQ topic, otherwise Tableflow ... enters the Pause state"
+# (https://docs.confluent.io/cloud/current/topics/tableflow/operate/configure-tableflow.html).
+# The enabling account is the owner of the Tableflow API key, i.e. sa-terraform-ci.
+resource "confluent_role_binding" "terraform_ci_dlq_write" {
+  principal   = "User:${confluent_service_account.terraform_ci.id}"
+  role_name   = "DeveloperWrite"
+  crn_pattern = "${local.kafka_crn}/topic=${confluent_kafka_topic.orders_tableflow_errors.topic_name}"
+}
+
+resource "confluent_role_binding" "terraform_ci_dlq_read" {
+  principal   = "User:${confluent_service_account.terraform_ci.id}"
+  role_name   = "DeveloperRead"
+  crn_pattern = "${local.kafka_crn}/topic=${confluent_kafka_topic.orders_tableflow_errors.topic_name}"
+}
+
 # Lets CI submit Flink statements that run as sa-flink (Phase 4).
 resource "confluent_role_binding" "terraform_ci_assigner_flink_sa" {
   principal   = "User:${confluent_service_account.terraform_ci.id}"

@@ -1,4 +1,4 @@
-# Topics owned by Terraform: orders.raw (producer source) and orders.tableflow-errors (Tableflow DLQ).
+# Topics owned by Terraform: orders.raw (producer source) and orders_tableflow_errors (Tableflow DLQ).
 # Managed with the sa-terraform-ci Kafka key (CloudClusterAdmin via EnvironmentAdmin).
 
 locals {
@@ -34,7 +34,7 @@ resource "confluent_kafka_topic" "orders_tableflow_errors" {
   kafka_cluster {
     id = confluent_kafka_cluster.demo.id
   }
-  topic_name       = "orders.tableflow-errors"
+  topic_name       = "orders_tableflow_errors" # underscores: Tableflow rejects periods in error_handling.log_target
   partitions_count = var.topic_partitions
   rest_endpoint    = confluent_kafka_cluster.demo.rest_endpoint
   config           = local.topic_config

@@ -44,4 +44,6 @@ jobs:
         env:
           CONFLUENT_CLOUD_API_KEY: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
           CONFLUENT_CLOUD_API_SECRET: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_tableflow_api_key: ${{ secrets.TABLEFLOW_API_KEY }}
+          TF_VAR_tableflow_api_secret: ${{ secrets.TABLEFLOW_API_SECRET }}
         run: terraform apply -auto-approve -no-color
