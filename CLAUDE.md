@@ -14,3 +14,13 @@
 
 ## Tone for docs and copy
 - Brief. Clean punctuation. No marketing language.
+
+## Merging
+- Branch protection on `main` requires a PR but zero approvals; the owner merges their own PRs.
+- Every phase ends by running the `/merge` skill on its own PR. Do not leave a PR open for manual merge unless the prompt says so.
+- Before `/merge`: confirm the matching `docs/` file, the README status table, and `docs/09-open-questions.md` reflect what was actually built. Docs drift is a merge blocker.
+
+## Before finishing a phase
+1. Re-read the docs/ file for this phase and the README status/capability tables. Update anything that no longer matches what you built. Record any smoke-test results in docs/09-open-questions.md.
+2. Run docs-lint locally or confirm it is green on the PR.
+3. Run /merge on this PR.
