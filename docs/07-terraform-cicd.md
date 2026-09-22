@@ -41,7 +41,7 @@ flowchart TD
   E --> F[6. consumers smoke test]
 ```
 
-Step 1 ran locally in Phase 1 because it creates the CI role itself. Steps 2–4 are `terraform apply` runs in GitHub Actions on the `prod` environment. Step 5 is scripted. Step 6 is a workflow. Exact commands for the step 3 re-apply are in `terraform/README.md`.
+Step 1 ran locally in Phase 1 because it creates the CI role itself. Step 2 ran locally in Phase 2 because CI had no Confluent key yet. Steps 3–4 are `terraform apply` runs in GitHub Actions on the `prod` environment. Step 5 is scripted. Step 6 is a workflow. Exact commands for the step 3 re-apply are in `terraform/README.md`.
 
 ## GitHub Actions
 
@@ -54,8 +54,8 @@ Step 1 ran locally in Phase 1 because it creates the CI role itself. Steps 2–4
 | `consumers-smoke.yml` | schedule + PR on `consumers/**` | assumes consumer roles via OIDC, runs reads, asserts |
 
 Auth:
-- AWS: OIDC to `github-actions-terraform`. No static keys. Role ARN in the `prod` environment variable `AWS_TERRAFORM_ROLE_ARN`; PI principal, external ID, and cluster ID in `TF_VAR_*` environment variables once Phase 2 produces them.
-- Confluent: `CONFLUENT_CLOUD_API_KEY/SECRET` for `sa-terraform-ci` in the `prod` GitHub Environment.
+- AWS: OIDC to `github-actions-terraform`. No static keys. Role ARN in the `prod` environment variable `AWS_TERRAFORM_ROLE_ARN`; the two PI principal/external-ID pairs and the cluster ID in `TF_VAR_CONFLUENT_PI_*`, `TF_VAR_CONFLUENT_GLUE_PI_*`, `TF_VAR_KAFKA_CLUSTER_ID` (set in Phase 2).
+- Confluent: `CONFLUENT_CLOUD_API_KEY/SECRET` for `sa-terraform-ci` in the `prod` GitHub Environment (set in Phase 2 from the Confluent root's sensitive output). The first Confluent apply ran locally under a temporary Cloud API key for the human admin, which was deleted once CI ran green on the SA key.
 - Consumer roles: separate OIDC trust conditions (`environment:consumers`) so the Terraform role can't be used to read data and vice versa.
 
 ## Pins

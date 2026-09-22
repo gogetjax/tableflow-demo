@@ -1,11 +1,12 @@
-name: tf-apply-aws
+name: tf-apply-confluent
 
 on:
   push:
     branches: [main]
     paths:
-      - "terraform/aws/**"
-      - ".github/workflows/tf-apply-aws.yml"
+      - "terraform/confluent/**"
+      - "schemas/**"
+      - ".github/workflows/tf-apply-confluent.yml"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: terraform-apply-aws
+  group: terraform-apply-confluent
   cancel-in-progress: false
 
 env:
@@ -26,12 +27,13 @@ jobs:
     environment: prod
     defaults:
       run:
-        working-directory: terraform/aws
+        working-directory: terraform/confluent
     steps:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.13.3"
+      # AWS creds are for the S3 state backend and the aws root's remote state only.
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
@@ -40,9 +42,6 @@ jobs:
       - run: terraform validate
       - name: apply
         env:
-          TF_VAR_confluent_pi_principal_arn: ${{ vars.TF_VAR_CONFLUENT_PI_PRINCIPAL_ARN }}
-          TF_VAR_confluent_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_PI_EXTERNAL_ID }}
-          TF_VAR_confluent_glue_pi_principal_arn: ${{ vars.TF_VAR_CONFLUENT_GLUE_PI_PRINCIPAL_ARN }}
-          TF_VAR_confluent_glue_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_GLUE_PI_EXTERNAL_ID }}
-          TF_VAR_kafka_cluster_id: ${{ vars.TF_VAR_KAFKA_CLUSTER_ID || '*' }}
+          CONFLUENT_CLOUD_API_KEY: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
+          CONFLUENT_CLOUD_API_SECRET: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
         run: terraform apply -auto-approve -no-color

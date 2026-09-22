@@ -53,6 +53,8 @@ Roles below use Confluent's predefined roles. Grant at the narrowest scope that 
 | Human cloud admin | OrganizationAdmin | org | break-glass only; create `sa-terraform-ci` and the provider integration once |
 
 Notes:
+- **Cluster type.** Topic- and subject-scoped roles (`DeveloperRead`/`DeveloperWrite` on a topic) are rejected on Basic clusters (`403 Basic Clusters can not use resource roles`). The demo runs a Standard cluster for that reason alone.
+- `sa-terraform-ci` also holds `Assigner` on `sa-flink` so CI can submit Flink statements that run as `sa-flink` (Phase 4).
 - Tableflow enablement and catalog integration are cluster-level operations. Confluent docs list CloudClusterAdmin + Assigner on provider integrations as prerequisites for catalog integrations; EnvironmentAdmin covers CloudClusterAdmin. If you want CI narrower, replace EnvironmentAdmin with CloudClusterAdmin on the cluster plus explicit SR and Flink grants, and test.
 - Schema Registry: set global compatibility to `BACKWARD` (default) or `FULL`. Terraform owns the subjects; the producer never registers schemas (`auto.register.schemas=false`, `use.latest.version=true`). This is the governance story.
 - API keys for `sa-shadowtraffic` and `sa-flink` are created by Terraform and written only to GitHub Environment secrets. Rotate by re-running the key resource.
@@ -61,7 +63,7 @@ Notes:
 
 ### Provider integration trust (Confluent → AWS)
 
-Confluent's provider integration gives you a Confluent-side IAM principal ARN and an external ID. The trust policy on `tableflow-writer` and `tableflow-glue-writer` allows only that principal with `sts:ExternalId` matching. Follow the Confluent provider-integration guide for the exact trust document; it is generated per environment.
+Each provider integration hands back its own Confluent-side IAM principal ARN and external ID. There are two (S3 and Glue) because `customer_role_arn` must be unique per environment. The trust policy on `tableflow-writer` allows the S3 integration's principal with its `sts:ExternalId`; `tableflow-glue-writer` allows the Glue integration's pair. Both also allow `sts:TagSession`, per the Confluent provider-integration guide. Values flow from the Confluent root's outputs into the AWS root as `TF_VAR_*` variables on the `prod` environment.
 
 ### `tableflow-writer` permissions
 
