@@ -1,0 +1,46 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!example.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfplan
+tfplan*
+
+# AWS
+.aws/
+aws-credentials*
+*.pem
+*.key
+credentials
+config.aws
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.secret
+secrets.*
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+tmp/
