@@ -17,7 +17,7 @@ terraform/
     outputs.tf             # role ARNs, bucket name, subnet/SG ids
   confluent/               # state: s3 backend, key confluent/terraform.tfstate
     env.tf                 # environment, SR (Essentials), cluster
-    topics.tf              # orders.raw, orders.clean, orders.rejected, orders.tableflow-errors
+    topics.tf              # orders.raw, orders.tableflow-errors (orders.clean/rejected are created by Flink DDL)
     schemas.tf             # SR subjects from ../../schemas/*.avsc, compatibility
     rbac.tf                # service accounts, role bindings, API keys → outputs (sensitive)
     flink.tf               # compute pool

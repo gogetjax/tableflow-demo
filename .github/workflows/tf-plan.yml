@@ -51,6 +51,7 @@ jobs:
           TF_VAR_confluent_glue_pi_external_id: ${{ vars.TF_VAR_CONFLUENT_GLUE_PI_EXTERNAL_ID }}
           TF_VAR_kafka_cluster_id: ${{ vars.TF_VAR_KAFKA_CLUSTER_ID || '*' }}
         run: |
+          set -o pipefail
           terraform plan -no-color -out=tfplan | tee plan.txt
           echo "summary=$(grep -E '^(Plan:|No changes)' plan.txt | head -1)" >> "$GITHUB_OUTPUT"
       - name: comment
@@ -90,6 +91,7 @@ jobs:
           CONFLUENT_CLOUD_API_KEY: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
           CONFLUENT_CLOUD_API_SECRET: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
         run: |
+          set -o pipefail
           terraform plan -no-color -out=tfplan | tee plan.txt
           echo "summary=$(grep -E '^(Plan:|No changes)' plan.txt | head -1)" >> "$GITHUB_OUTPUT"
       - name: comment

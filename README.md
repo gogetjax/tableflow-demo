@@ -60,7 +60,7 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 | 0 Design and docs | done |
 | 1 AWS foundation (`terraform/aws`) | applied: lake bucket, 6 IAM roles, isolated consumer VPC |
 | 2 Confluent foundation (`terraform/confluent`) | applied: env, Standard cluster, SR subjects, 3 SAs + RBAC, 5 CFU pool, 2 provider integrations; AWS trust finalized |
-| 3 Producer | pending |
+| 3 Producer (`shadowtraffic/`) | verified: Avro via SR, dirty-row rates observed on 1,000 events |
 | 4 Flink | pending |
 | 5 Tableflow + Glue | pending |
 | 6 Consumers | pending |
