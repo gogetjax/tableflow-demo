@@ -1,0 +1,14 @@
+# markdownlint config. Stylistic rules that conflict with the design set's
+# established formatting are off; structural rules (heading levels, link
+# fragments, empty links, duplicate headings) stay on.
+default: true
+MD013: false   # line length: tables and prose links run long by design
+MD022: false   # blank lines around headings: checklists sit directly under their heading
+MD032: false   # blank lines around lists: ADR sections lead straight into bullets
+MD033: false   # inline HTML: <br/> inside Mermaid node labels
+MD034: false   # bare URLs: source-doc lists are meant to be copied
+MD040: false   # fenced-code language: ASCII layout diagrams have none
+MD041: false   # first line heading: prompts/*.md are raw prompts, not documents
+MD060: false   # table pipe spacing: compact |---|---| separators are used throughout
+MD024:
+  siblings_only: true   # same heading text allowed under different parents

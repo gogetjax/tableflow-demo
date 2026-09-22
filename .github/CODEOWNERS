@@ -1,0 +1,6 @@
+# Default owner for the whole repo.
+*               @gogetjax
+
+# Infrastructure and design docs require an explicit review from the owner.
+/terraform/**   @gogetjax
+/docs/**        @gogetjax
