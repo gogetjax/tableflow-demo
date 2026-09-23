@@ -1,33 +1,22 @@
 #!/usr/bin/env bash
-# Bring the AWS side back for a demo:
-#   1. terraform apply on terraform/aws (recreates the interface endpoints; no-op otherwise)
-#   2. start the consumer runner instance and wait for SSM to report it Online
+# Bring the AWS side back for a demo: terraform apply with var.idle = false, which creates the
+# interface VPC endpoints and sets the runner instance to running. Then wait for SSM.
 # Idempotent. Confluent is untouched. Same credential/variable needs as aws-idle.sh.
 #
-# Observed timing: endpoints are "available" ~45 s after apply starts, private DNS usable
-# ~1 minute later. If the SSM agent starts before that it backs off for a long time, so the
-# script waits after creating endpoints and reboots the instance once if SSM stays silent.
+# Observed: on every cold start the SSM agent stays silent (it starts before endpoint DNS is
+# usable and backs off), so after 2 minutes the script reboots the instance once; it reports
+# Online ~40 s later. Expect 5–6 minutes end to end.
 set -euo pipefail
 REGION="${AWS_REGION:-us-east-1}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../terraform/aws" && pwd)"
-TF=(terraform "-chdir=$ROOT")
 
-echo "== terraform apply (recreates interface endpoints; usually 1-2 minutes)"
-out=$("${TF[@]}" apply -input=false -auto-approve -no-color)
-echo "$out" | grep -E '^(Apply complete|Error)|Creation complete' || true
-if echo "$out" | grep -q 'aws_vpc_endpoint.*Creation complete'; then
-  echo "endpoints created; waiting 60 s for private DNS"; sleep 60
-fi
+echo "== terraform apply -var idle=false (endpoints + instance running; ~1-2 minutes)"
+terraform -chdir="$ROOT" apply -input=false -auto-approve -no-color -var idle=false \
+  | grep -E '^(Apply complete|Error)|Creation complete|Modifications complete' || true
 
-echo "== runner instance"
-iid=$("${TF[@]}" output -raw consumer_runner_instance_id)
-state=$(aws ec2 describe-instances --region "$REGION" --instance-ids "$iid" --query 'Reservations[0].Instances[0].State.Name' --output text)
-echo "$iid is $state"
-if [[ "$state" != "running" ]]; then
-  aws ec2 start-instances --region "$REGION" --instance-ids "$iid" >/dev/null
-  aws ec2 wait instance-running --region "$REGION" --instance-ids "$iid"
-  echo "$iid running"
-fi
+iid=$(terraform -chdir="$ROOT" output -raw consumer_runner_instance_id)
+aws ec2 wait instance-running --region "$REGION" --instance-ids "$iid"
+echo "$iid running"
 
 wait_ssm() { # wait_ssm <seconds>
   local i
@@ -42,7 +31,7 @@ wait_ssm() { # wait_ssm <seconds>
 
 echo "== waiting for SSM"
 if ! wait_ssm 120; then
-  echo "SSM silent after 2 minutes; rebooting the instance once so the agent reconnects (observed: needed on every cold start, Online ~40 s after)"
+  echo "SSM silent after 2 minutes; rebooting the instance once so the agent reconnects"
   aws ec2 reboot-instances --region "$REGION" --instance-ids "$iid"
   wait_ssm 600 || { echo "SSM did not report Online"; exit 1; }
 fi

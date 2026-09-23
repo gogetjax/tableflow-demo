@@ -8,7 +8,7 @@ IDs used throughout: environment `env-876zz7`, cluster `lkc-q2zqngd`, pool `lfcp
 
 Confluent resources stay running by design; only AWS is paused between demos.
 
-1. `scripts/aws-resume.sh` (needs the AWS root's `TF_VAR_confluent_*` variables in the environment, see terraform/README.md). Terraform recreates the interface endpoints (~1 minute), waits a minute for private DNS, starts the runner, and waits for SSM to report it `Online`. On every cold start observed the agent stayed silent until the script rebooted the instance once (Online ~40 s later); expect 5–6 minutes end to end. Do not skip the wait: SSM commands sent before that fail with "instance not in a valid state".
+1. `scripts/aws-resume.sh` (needs the AWS root's `TF_VAR_confluent_*` variables in the environment, see terraform/README.md). It is `terraform apply -var idle=false`: the interface endpoints come back (~1 minute) and the runner's state resource flips it to running. Then it waits for SSM; on every cold start observed the agent stayed silent until the script rebooted the instance once (Online ~40 s later). Expect 5–6 minutes end to end. Do not skip the wait: SSM commands sent before that fail with "instance not in a valid state".
 2. Docker Desktop running; license and connection env files in `~/.config/` (shadowtraffic/README.md). Start the producer (step 1 below) a few minutes early so Tableflow has fresh commits to show.
 3. Flink statements `RUNNING`: `confluent flink statement list --cloud aws --region us-east-1 --environment env-876zz7 --compute-pool lfcp-o3z7jop`.
 4. Tableflow `RUNNING`: `confluent tableflow topic describe orders.clean --cluster lkc-q2zqngd --environment env-876zz7`.
@@ -91,5 +91,5 @@ Say: the only principal that has ever written to the bucket is `tableflow-writer
 ## After the demo
 
 1. Stop the producer: `docker stop shadowtraffic-orders`.
-2. `scripts/aws-idle.sh`: stops the runner (EBS kept) and destroys the interface endpoints. Prints what still bills (S3 storage and CloudTrail, both negligible).
+2. `scripts/aws-idle.sh` (`terraform apply -var idle=true`, the default): removes the interface endpoints and stops the runner (EBS kept). Prints what still bills (S3 storage and CloudTrail, both negligible).
 3. Confluent stays up. To retire the demo entirely, follow the teardown order in docs/07.

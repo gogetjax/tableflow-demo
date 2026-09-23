@@ -74,6 +74,7 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 resource "aws_vpc_endpoint" "glue" {
+  count               = var.idle ? 0 : 1
   vpc_id              = aws_vpc.consumers.id
   service_name        = "com.amazonaws.${var.region}.glue"
   vpc_endpoint_type   = "Interface"
