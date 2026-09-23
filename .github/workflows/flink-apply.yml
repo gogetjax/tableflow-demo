@@ -1,0 +1,31 @@
+name: flink-apply
+
+# Manual: applies flink/*.sql in order as named statements running as sa-flink, skipping ones
+# that already exist and re-creating FAILED ones. Uses the Flink REST API with a Flink API key
+# owned by sa-terraform-ci (the CLI has no API-key login for Confluent Cloud).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: apply statements
+        env:
+          FLINK_API_KEY: ${{ secrets.FLINK_API_KEY }}
+          FLINK_API_SECRET: ${{ secrets.FLINK_API_SECRET }}
+          CONFLUENT_ORG_ID: ${{ vars.CONFLUENT_ORG_ID }}
+          CONFLUENT_ENV_ID: ${{ vars.CONFLUENT_ENV_ID }}
+          CONFLUENT_ENV_NAME: ${{ vars.CONFLUENT_ENV_NAME }}
+          FLINK_COMPUTE_POOL_ID: ${{ vars.FLINK_COMPUTE_POOL_ID }}
+          KAFKA_CLUSTER_ID: ${{ vars.TF_VAR_KAFKA_CLUSTER_ID }}
+          FLINK_SA_ID: ${{ vars.FLINK_SA_ID }}
+        run: python flink/apply_rest.py

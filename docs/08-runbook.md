@@ -51,10 +51,14 @@ Each phase is one Claude Code worktree and one PR. Tick boxes in the PR, not her
 
 | Check | Command |
 |---|---|
-| Tableflow status | `confluent tableflow topic describe orders.clean --cluster <id>` (verify subcommand name) |
-| Glue table pointer | `aws glue get-table --database-name <cluster-id> --name <table>` → `Parameters.metadata_location` |
-| Delta version | `python consumers/delta/deltalake_read.py --version-only` |
-| Iceberg snapshot | `python consumers/iceberg/pyiceberg_read.py --snapshot-only` |
+| Tableflow status | `confluent tableflow topic describe orders.clean --cluster lkc-q2zqngd --environment env-876zz7` |
+| Everything at once | `CONFLUENT_ENV_ID=env-876zz7 KAFKA_CLUSTER_ID=lkc-q2zqngd LAKE_BUCKET=tableflow-demo-lake-706193894984 ./tableflow/verify.sh` |
+| Glue table pointer | `aws glue get-table --database-name lkc-q2zqngd --name orders.clean --query Table.Parameters.metadata_location` |
+| Delta version | `DELTA_TABLE_URI=<table_path> python consumers/delta/spark_read.py --version-only` (delta-rs `--version-only` also works; its scan does not) |
+| Iceberg snapshot | `GLUE_DATABASE=lkc-q2zqngd GLUE_TABLE=orders.clean python consumers/iceberg/pyiceberg_read.py --snapshot-only` |
+| Flink statements | `confluent flink statement list --cloud aws --region us-east-1 --environment env-876zz7 --compute-pool lfcp-o3z7jop` |
+| Isolated consumer run | `consumers/runner/run.sh` (see consumers/README.md) |
+| Who touched the bucket | `CLOUDTRAIL_BUCKET=tableflow-demo-cloudtrail-706193894984 LAKE_BUCKET=tableflow-demo-lake-706193894984 ./consumers/cloudtrail_report.sh` |
 
 ## Troubleshooting
 
@@ -66,3 +70,9 @@ Each phase is one Claude Code worktree and one PR. Tick boxes in the PR, not her
 | Flink statement rejected: changelog mode | retract-producing query | rewrite per 04 hard rule |
 | Producer fails with schema not found | `auto.register.schemas=false` and Terraform hasn't applied `schemas/` | apply Confluent root |
 | Consumer works with NAT, fails without | missing Glue or S3 VPC endpoint | add endpoint; do not add NAT |
+| Tableflow `FAILED`: "unable to set up the DLQ topic" | Tableflow API key owner lacks write on the `log_target` topic, or the name has a period | grant `DeveloperWrite`; use underscores |
+| Tableflow `FAILED`: "cannot write to the S3 bucket" | bucket policy deny (check with `aws iam simulate-principal-policy` and the writer role) or trust policy reverted | fix the policy; re-apply AWS root with the PI variables (`tf-aws.sh`) |
+| Tableflow `FAILED`: "Unable to assume the IAM role" | writer trust policy is the deny-all placeholder | re-apply `terraform/aws` with `TF_VAR_confluent_*` set |
+| Flink `CREATE TABLE`: "already exists in Catalog" | topic pre-created by Terraform | delete the topic; let the DDL create it |
+| Flink INSERT: "Transactional Id authorization failed" | `sa-flink` lacks transactional-id bindings | see docs/02 RBAC table |
+| Delta reader errors on `TypeWidening` / NULL columns | delta-rs / DuckDB cannot read Tableflow's Delta protocol | use `consumers/delta/spark_read.py` (docs/09 Q11) |

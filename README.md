@@ -15,12 +15,13 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 
 | Capability | Where |
 |---|---|
-| Dual-format materialization (Iceberg + Delta) from one topic | `tableflow/`, [docs/05-tableflow-spec.md](docs/05-tableflow-spec.md) |
+| Dual-format materialization (Iceberg + Delta) from one topic, one shared set of Parquet files | `terraform/confluent/tableflow.tf`, `tableflow/verify.sh`, [docs/05-tableflow-spec.md](docs/05-tableflow-spec.md) |
 | Bring Your Own Storage (S3) with least-privilege IAM | `terraform/aws`, [docs/02-security.md](docs/02-security.md) |
 | Schema Registry governance with Avro end to end | [docs/03-producer-spec.md](docs/03-producer-spec.md) |
 | Shift-left cleaning with Confluent Cloud Flink SQL | `flink/`, [docs/04-flink-spec.md](docs/04-flink-spec.md) |
 | Catalog strategy: Glue for Iceberg, path-based for Delta | [docs/adr/0002-catalog-strategy.md](docs/adr/0002-catalog-strategy.md) |
-| Consumer isolation: zero Confluent credentials or network path on the read side | [docs/adr/0003-consumer-isolation.md](docs/adr/0003-consumer-isolation.md) |
+| Consumer isolation: zero Confluent credentials or network path on the read side, proven from a no-internet subnet with CloudTrail evidence | `consumers/`, [docs/06-consumer-spec.md](docs/06-consumer-spec.md), [docs/adr/0003-consumer-isolation.md](docs/adr/0003-consumer-isolation.md) |
+| Iceberg read via Glue (PyIceberg, Athena); Delta read by path (Spark + Delta Lake) | `consumers/iceberg`, `consumers/delta` |
 | Everything provisioned by Terraform through GitHub Actions | [docs/07-terraform-cicd.md](docs/07-terraform-cicd.md) |
 
 ## Repository layout
@@ -52,6 +53,7 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 4. Apply Flink statements in order: `flink/README.md`.
 5. Enable Tableflow on the clean topic in both formats: `tableflow/README.md`.
 6. Run a consumer from an isolated AWS principal: `consumers/README.md`.
+7. Give the demo: [docs/10-demo-script.md](docs/10-demo-script.md).
 
 ## Status
 
@@ -64,9 +66,17 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 | 4 Flink (`flink/`) | running: 2 DDL + 2 INSERT statements as `sa-flink`; acceptance checks in docs/04 |
 | 5 Tableflow + Glue (`terraform/confluent/tableflow.tf`, `catalog.tf`) | running: `orders.clean` BYOS, ICEBERG + DELTA, Glue sync |
 | 6 Consumers (`consumers/`) | verified from the isolated subnet: PyIceberg via Glue, Spark + Delta by path; counts agree |
-| 7 CI polish | pending |
+| 7 CI polish | done: `consumers-smoke.yml` (6-hourly), `flink-apply.yml` (manual, REST), Renovate config, [docs/10-demo-script.md](docs/10-demo-script.md) |
 
-See [docs/09-open-questions.md](docs/09-open-questions.md) for items that must be verified against live Confluent Cloud before the README claims them.
+Every row in [docs/09-open-questions.md](docs/09-open-questions.md) has a recorded result.
+
+## Known gaps
+
+- **Delta readers.** Tableflow's Delta tables carry reader features `typeWidening`, `deletionVectors` and column mapping `id`. Spark 3.5 + Delta 3.3 (and Databricks) read them; delta-rs 1.6 and DuckDB's delta extension do not (docs/09 Q11). The Delta consumer is Spark-based.
+- **Databricks path read** is written (`consumers/delta/databricks.sql`) but was not executed; no workspace was available (Q10).
+- **Glue IAM verbs** for `tableflow-glue-writer` are a working superset, not the Console-generated minimum (Q8).
+- **ShadowTraffic registers its schema** on start even with `auto.register.schemas=false`; the producer service account needs subject write, and governance is enforced by the schema being identical (docs/03).
+- **Renovate** config is in the repo but the app must be enabled on the repo/org to open PRs.
 
 ## Key constraints (read before changing anything)
 

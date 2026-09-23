@@ -8,3 +8,5 @@ KAFKA_CLUSTER_ID=lkc-q2zqngd FLINK_SA_ID=sa-09o09v9 ./flink/apply.sh
 ```
 
 The caller needs `Assigner` on `sa-flink` (an org admin, or `sa-terraform-ci`). Statement names: `tableflow-demo-<file-basename>`.
+
+`apply_rest.py` is the same logic over the Flink REST API, used by `.github/workflows/flink-apply.yml` with a Flink API key owned by `sa-terraform-ci` (the Confluent CLI has no API-key login for Confluent Cloud, only email/password or SSO).

@@ -22,7 +22,7 @@ flowchart LR
     S3[(S3 bucket<br/>tableflow-demo-lake)]
     GLUE[(Glue Data Catalog<br/>db = cluster id)]
     IC[Iceberg consumer<br/>PyIceberg / Athena]
-    DC[Delta consumer<br/>delta-rs / DuckDB / Databricks]
+    DC[Delta consumer<br/>Spark + Delta Lake / Databricks]
   end
   ST -- Avro + SR --> RAW
   ST -. register/lookup .-> SR

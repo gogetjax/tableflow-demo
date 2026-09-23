@@ -13,6 +13,7 @@ Read in order the first time.
 | 07 | [Terraform and CI/CD](07-terraform-cicd.md) | Module layout, state, GitHub Actions, OIDC |
 | 08 | [Runbook](08-runbook.md) | Phase checklists, verification, troubleshooting |
 | 09 | [Open questions](09-open-questions.md) | Claims that need a live smoke test before they go in the README |
+| 10 | [Demo script](10-demo-script.md) | 10-minute walkthrough of the running demo |
 | ADR | [adr/](adr/) | Decisions and the reasons behind them |
 
 Source docs referenced throughout (verify against these, not memory):
