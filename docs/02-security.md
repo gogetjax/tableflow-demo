@@ -127,5 +127,5 @@ Bucket settings: versioning on (protects against accidental deletes), Block Publ
 | Consumer roles have zero Confluent references | `grep -ri confluent consumers/` returns only comments; IAM policies contain no `secretsmanager` reads of Confluent keys |
 | Consumer VPC has no egress | Run the consumer from a subnet with no NAT/IGW; the read must still succeed |
 | Writer cannot read consumer data via other paths | Not applicable; writer needs `GetObject` for compaction. Document it. |
-| CloudTrail shows only expected principals on the bucket | Query CloudTrail data events for the bucket over the demo window |
+| CloudTrail shows only expected principals on the bucket | Query CloudTrail data events for the bucket over the demo window (trail `tableflow-demo-lake`, data events only, `terraform/aws/cloudtrail.tf`) |
 | No human wrote to the bucket | Same CloudTrail query, filter `PutObject` by principal |

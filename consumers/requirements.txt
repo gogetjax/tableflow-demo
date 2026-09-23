@@ -1,0 +1,8 @@
+pyiceberg[glue,s3fs,pyarrow,pandas]>=0.9
+deltalake>=1.2   # 1.2.1 is the last cp39 wheel (Amazon Linux 2023 runner); the probe behaves the same
+pyarrow>=17
+pandas>=2
+boto3>=1.35
+# Delta reader that actually handles Tableflow's protocol features (docs/06):
+pyspark==3.5.7
+delta-spark==3.3.2

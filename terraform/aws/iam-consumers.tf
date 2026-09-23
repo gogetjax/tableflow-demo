@@ -6,7 +6,7 @@ data "aws_iam_policy_document" "consumer_trust" {
     principals {
       type = "AWS"
       identifiers = concat(
-        [aws_iam_role.github_actions_consumers.arn],
+        [aws_iam_role.github_actions_consumers.arn, aws_iam_role.consumer_runner.arn],
         var.consumer_trusted_principal_arns,
       )
     }

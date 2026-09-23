@@ -63,7 +63,7 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 | 3 Producer (`shadowtraffic/`) | verified: Avro via SR, dirty-row rates observed on 1,000 events |
 | 4 Flink (`flink/`) | running: 2 DDL + 2 INSERT statements as `sa-flink`; acceptance checks in docs/04 |
 | 5 Tableflow + Glue (`terraform/confluent/tableflow.tf`, `catalog.tf`) | running: `orders.clean` BYOS, ICEBERG + DELTA, Glue sync |
-| 6 Consumers | pending |
+| 6 Consumers (`consumers/`) | verified from the isolated subnet: PyIceberg via Glue, Spark + Delta by path; counts agree |
 | 7 CI polish | pending |
 
 See [docs/09-open-questions.md](docs/09-open-questions.md) for items that must be verified against live Confluent Cloud before the README claims them.
@@ -74,3 +74,4 @@ See [docs/09-open-questions.md](docs/09-open-questions.md) for items that must b
 - Bucket must be in the same region as the Kafka cluster; start empty; never modify Tableflow-written objects.
 - Flink outputs feeding Tableflow must be append or upsert changelog mode. Retract mode is not supported by Tableflow.
 - Consumers hold AWS credentials only. No Confluent API key, no Tableflow REST catalog endpoint, no Kafka bootstrap on the consumer side.
+- Tableflow's Delta tables need a Delta-Kernel-class reader (Spark / Databricks). delta-rs and DuckDB cannot read them today (docs/09 Q11).

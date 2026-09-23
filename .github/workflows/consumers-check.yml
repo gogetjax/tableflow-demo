@@ -1,0 +1,24 @@
+name: consumers-check
+
+on:
+  pull_request:
+    paths:
+      - "consumers/**"
+      - ".github/workflows/consumers-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "consumers/**"
+
+permissions:
+  contents: read
+
+jobs:
+  no-confluent-references:
+    # The read side must hold no Confluent configuration. Markdown is skipped and comment
+    # text (#, --, //) is stripped so explanations are allowed; code and config are not.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: grep consumers/ for Confluent, Schema Registry, bootstrap servers
+        run: bash consumers/check-isolation.sh
