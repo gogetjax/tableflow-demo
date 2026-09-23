@@ -22,6 +22,7 @@ flowchart LR
     S3[(S3 bucket<br/>tableflow-demo-lake)]
     GLUE[(Glue Data Catalog<br/>db = cluster id)]
     IC[Iceberg consumer<br/>PyIceberg / Athena]
+    RUN[Isolated runner instance<br/>private subnet, no internet]
     DC[Delta consumer<br/>Spark + Delta Lake / Databricks]
   end
   ST -- Avro + SR --> RAW
@@ -34,6 +35,8 @@ flowchart LR
   GLUE --> IC
   S3 --> IC
   S3 --> DC
+  RUN -.-> IC
+  RUN -.-> DC
 ```
 
 ## Trust boundaries
@@ -51,7 +54,10 @@ flowchart TB
     G[(Glue)]
     C1[Iceberg consumer role]
     C2[Delta consumer role]
+    RUN[Runner instance<br/>isolated subnet]
   end
+  RUN --> C1
+  RUN --> C2
   T -- AssumeRole via provider integration<br/>outbound from Confluent only --> B
   T -- AssumeRole via provider integration --> G
   C1 --> G
@@ -90,7 +96,9 @@ The only link between zones is Confluent assuming an IAM role in the AWS account
 | Service accounts | `cjackson-sa-shadowtraffic`, `cjackson-sa-flink`, `cjackson-sa-terraform-ci` (docs refer to them without the prefix) |
 | Flink compute pool | `cjackson-tableflow-demo`, 5 CFU (`lfcp-o3z7jop`) |
 | Provider integrations | `cjackson-tableflow-s3` → `tableflow-writer`, `cjackson-tableflow-glue` → `tableflow-glue-writer` (one per role; `customer_role_arn` must be unique per environment) |
-| Topics | `orders.raw`, `orders.clean`, `orders.rejected` |
+| Topics | `orders.raw`, `orders.clean`, `orders.rejected`, `orders_tableflow_errors` (the Tableflow DLQ uses underscores: the Tableflow API rejects periods in `error_handling.log_target`) |
+| "BYOS" vs `byob_aws` | Docs say BYOS (Bring Your Own Storage) for the concept; the Terraform provider's block is `byob_aws` and the CLI flag is `--storage-type BYOS`. Same thing. |
+| Prefix scope | The `cjackson-` prefix applies to environment-level Confluent resources (environment, cluster, service accounts, pool, provider/catalog integrations). Topics and subjects are cluster-scoped and unprefixed. |
 | SR subjects | `orders.raw-key`, `orders.raw-value`, `orders.clean-key`, `orders.clean-value` |
 | S3 bucket | `tableflow-demo-lake-<account-id>` |
 | Glue database | created by Tableflow, named after the cluster ID. Do not pre-create with a different name. |

@@ -23,7 +23,10 @@ flowchart LR
     R3[role: consumer-iceberg]
     R4[role: consumer-delta]
     R5[role: github-actions-terraform<br/>OIDC]
+    R6[role: tableflow-demo-consumer-runner<br/>EC2 instance profile]
   end
+  R6 --> R3
+  R6 --> R4
   R1 --> S3[(S3 bucket)]
   R2 --> G[(Glue db)]
   R3 --> G
@@ -37,7 +40,7 @@ flowchart LR
 
 ## Confluent Cloud RBAC
 
-Roles below use Confluent's predefined roles. Grant at the narrowest scope that works; prefer topic/subject prefixes over cluster-wide.
+Roles below use Confluent's predefined roles. Grant at the narrowest scope that works; prefer topic/subject prefixes over cluster-wide. **Cluster type matters:** Basic clusters reject topic-scoped role bindings (`403 Basic Clusters can not use resource roles`), so this security model requires a Standard cluster or above. **Tableflow error logging:** the account that enables Tableflow with `LOG` error handling (the owner of the Tableflow API key) must have write access on the error-log topic, or the topic fails with "unable to set up the DLQ topic".
 
 | Principal | Role | Scope | Why |
 |---|---|---|---|
@@ -83,7 +86,7 @@ Verified in Phase 1 against the Configure Storage page (docs/09 Q8). Implemented
 
 ### `tableflow-glue-writer` permissions
 
-Scope: the Glue database Tableflow creates (name = cluster ID). Verbs: `glue:CreateDatabase`, `glue:GetDatabase`, `glue:GetDatabases`, `glue:CreateTable`, `glue:GetTable`, `glue:GetTables`, `glue:UpdateTable`, `glue:DeleteTable`. Confluent does not publish this list; the Console generates a template per integration. This is a superset to be diffed against that template in Phase 5 (docs/09 Q8). Resource ARNs limited to `catalog`, `database/<cluster-id>`, `table/<cluster-id>/*`.
+Scope: the Glue database Tableflow creates (name = cluster ID). Verbs: `glue:CreateDatabase`, `glue:GetDatabase`, `glue:GetDatabases`, `glue:CreateTable`, `glue:GetTable`, `glue:GetTables`, `glue:UpdateTable`, `glue:DeleteTable`. **Status: working superset; Console minimum not yet derived.** Confluent does not publish this list; the Console generates a template per catalog integration, which was not retrieved in this run. The integration reached `CONNECTED` with this set (docs/09 Q8). Tightening it is a runbook item (docs/08). Resource ARNs limited to `catalog`, `database/<cluster-id>`, `table/<cluster-id>/*`.
 
 ### `consumer-iceberg` permissions
 

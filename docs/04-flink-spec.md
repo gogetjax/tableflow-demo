@@ -12,6 +12,8 @@ Tableflow does not support retract changelog mode. Every statement whose sink fe
 
 Verify each sink with `SHOW CREATE TABLE` and confirm `changelog.mode` before enabling Tableflow on it.
 
+Second hard rule: **sinks that feed Tableflow need `'value.fields-include' = 'all'`.** Confluent Cloud Flink defaults to `except-key`, which writes the primary-key column only into the Kafka key. Tableflow materializes the value schema, so without this option the Iceberg/Delta table has no `order_id` column at all (observed in Phase 4; the tables had to be dropped and rebuilt).
+
 ## Pipeline
 
 ```mermaid

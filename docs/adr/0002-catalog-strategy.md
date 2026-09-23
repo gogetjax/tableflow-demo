@@ -14,3 +14,5 @@
 **Glue costs.** One more IAM policy; sync can fail independently of materialization (stale table, not error); one Glue integration per cluster; tables must be treated read-only and Glue optimizers left off.
 
 **Consequences.** Tableflow's Glue integration is Iceberg-only; it never registers Delta tables. Tableflow has no built-in Delta catalog. The demo states the asymmetry plainly: Iceberg needs a catalog, Delta doesn't — a property of the formats, not of Tableflow.
+
+**Revision (2026-09-23, after Phase 6).** "Delta needs no catalog" held. "Any Delta reader by path" did not: Tableflow writes Delta tables at reader version 3 with the `typeWidening`, `deletionVectors` and `columnMapping` (mode `id`) table features, so the reader must implement those. Spark 3.5 + Delta Lake 3.3 reads the table; delta-rs 1.6.5 and DuckDB's delta extension do not. The decision stands with that qualifier: Delta needs no catalog, but requires a reader that implements the Delta table features Tableflow writes. Details and errors in [docs/09 Q11](../09-open-questions.md).
