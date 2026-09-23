@@ -47,6 +47,23 @@ Each phase is one Claude Code worktree and one PR. Tick boxes in the PR, not her
 - [ ] `consumers-smoke.yml` scheduled and green
 - [ ] README status updated; open questions closed or carried
 
+## AWS idle cost
+
+Confluent resources stay running by design (cluster, Flink pool and statements, Tableflow, integrations); only AWS is paused between demos.
+
+| Resource | Idle behaviour |
+|---|---|
+| Runner instance `tableflow-demo-consumer-runner` (t3.large) | **stopped** by `scripts/aws-idle.sh`; EBS volume kept (~$1.30/month) so the venv, JDK and jars survive |
+| Interface VPC endpoints (Glue, SSM ×3, STS, Athena; ~$0.01/h each) | **destroyed** by `aws-idle.sh` (`terraform destroy -target`, targets derived from `terraform state list`); recreated by `scripts/aws-resume.sh` |
+| S3 gateway endpoint, VPC, subnet, security groups | kept; free |
+| IAM roles, Glue database/table, DynamoDB lock table | kept; free |
+| S3 buckets (lake, tooling, Athena results, CloudTrail, state) | kept; storage only (~$0.023/GB-month, well under $1/month at demo volume) |
+| CloudTrail data events on the lake bucket | kept; $0.10 per 100k events, ~0 while the producer is stopped |
+
+`aws-resume.sh` runs `terraform apply` (endpoints back in 1–2 minutes), starts the instance, and waits for SSM to report it Online (1–3 minutes more). Both scripts are idempotent. The full teardown order for retiring the demo is in [docs/07-terraform-cicd.md](07-terraform-cicd.md).
+
+Open runbook item: derive the Console-generated Glue IAM template for the catalog integration and tighten `tableflow-glue-writer` to it (docs/02, docs/09 Q8).
+
 ## Verification commands (fill in as phases complete)
 
 | Check | Command |

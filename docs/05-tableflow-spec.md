@@ -63,7 +63,7 @@ s3://tableflow-demo-lake-706193894984/1100000/11101001/cfd75085-a017-4113-81ff-f
   _delta_log/    0000000000000000000N.json      # Delta commits (engineInfo "Kernel-4.2.2/Tableflow")
 ```
 
-Observed after the first commits (~5 minutes after `RUNNING`): 6 Parquet files (one per topic partition), 6 Iceberg metadata versions, 6 Delta log entries, and the same 6 `data/*.parquet` paths listed as `add` actions in `_delta_log` and as data files in the current Iceberg snapshot (`total-data-files` 6, `total-records` 20,505). **Iceberg and Delta share the data files; nothing is duplicated.** The Delta table uses `delta.columnMapping.mode = id`, which readers must support (delta-rs and DuckDB's delta extension do).
+**Iceberg and Delta share the Parquet data files under one table root; nothing is written twice.** Observed after the first commits (~5 minutes after `RUNNING`): 6 Parquet files (one per topic partition), 6 Iceberg metadata versions, 6 Delta log entries, and the same 6 `data/*.parquet` paths listed as `add` actions in `_delta_log` and as data files in the current Iceberg snapshot (`total-data-files` 6, `total-records` 20,505). **Iceberg and Delta share the data files; nothing is duplicated.** The Delta table uses `delta.columnMapping.mode = id`, which readers must support (delta-rs and DuckDB's delta extension do).
 
 The path prefix (`1100000/11101001/<org-id>/<env-id>/<cluster-id>/v1/<table-uuid>`) is Tableflow's; treat `table_path` as the only stable handle.
 

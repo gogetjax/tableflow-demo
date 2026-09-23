@@ -63,3 +63,7 @@ Applies run from `tf-apply-confluent.yml` with the `sa-terraform-ci` key. Sensit
 - `hashicorp/aws` 6.66.0
 - `confluentinc/confluent` 2.86.0 (registry docs: https://registry.terraform.io/providers/confluentinc/confluent/2.86.0/docs)
 - Terraform `>= 1.9`
+
+## Pausing and resuming the AWS side
+
+`scripts/aws-idle.sh` stops the runner instance and destroys the interface VPC endpoints (the only hourly AWS charges); `scripts/aws-resume.sh` recreates them and waits for SSM. Both need the same `TF_VAR_confluent_*` / `TF_VAR_kafka_cluster_id` values as any AWS apply (from the Confluent root's outputs), or the writer trust policies would be reverted to the placeholder. Confluent resources are never touched. Details in docs/08 "AWS idle cost".

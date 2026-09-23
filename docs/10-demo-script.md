@@ -4,12 +4,14 @@ One topic, cleaned by Flink, materialized by Tableflow into Iceberg and Delta in
 
 IDs used throughout: environment `env-876zz7`, cluster `lkc-q2zqngd`, pool `lfcp-o3z7jop`, bucket `tableflow-demo-lake-706193894984`, table path `s3://tableflow-demo-lake-706193894984/1100000/11101001/cfd75085-a017-4113-81ff-f34b6f2d2a87/env-876zz7/lkc-q2zqngd/v1/5839772c-c3b9-46e6-8dea-137d2269d7af`.
 
-## 0. Before the demo (5 minutes, not on the clock)
+## Before the demo (10 minutes, not on the clock)
 
-- Docker Desktop running; license and connection env files in `~/.config/` (shadowtraffic/README.md).
-- Flink statements `RUNNING`: `confluent flink statement list --cloud aws --region us-east-1 --environment env-876zz7 --compute-pool lfcp-o3z7jop`.
-- Tableflow `RUNNING`: `confluent tableflow topic describe orders.clean --cluster lkc-q2zqngd --environment env-876zz7`.
-- Runner instance `Online` in SSM (it can be stopped between demos; start it 3 minutes before).
+Confluent resources stay running by design; only AWS is paused between demos.
+
+1. `scripts/aws-resume.sh` (needs the AWS root's `TF_VAR_confluent_*` variables in the environment, see terraform/README.md). Terraform recreates the interface endpoints (~1 minute), waits a minute for private DNS, starts the runner, and waits for SSM to report it `Online`. On every cold start observed the agent stayed silent until the script rebooted the instance once (Online ~40 s later); expect 5–6 minutes end to end. Do not skip the wait: SSM commands sent before that fail with "instance not in a valid state".
+2. Docker Desktop running; license and connection env files in `~/.config/` (shadowtraffic/README.md). Start the producer (step 1 below) a few minutes early so Tableflow has fresh commits to show.
+3. Flink statements `RUNNING`: `confluent flink statement list --cloud aws --region us-east-1 --environment env-876zz7 --compute-pool lfcp-o3z7jop`.
+4. Tableflow `RUNNING`: `confluent tableflow topic describe orders.clean --cluster lkc-q2zqngd --environment env-876zz7`.
 
 ## 1. Start the producer (1 minute)
 
@@ -64,7 +66,13 @@ CONSUMER_DELTA_ROLE_ARN=arn:aws:iam::706193894984:role/consumer-delta \
 
 Say, as the output scrolls: the instance has no route to the internet (the `curl docs.confluent.io` line must time out); PyIceberg finds the table through Glue; Spark opens the Delta table by path; the roles hold Glue/S3 read only; the side-by-side table at the end shows the same row count from both formats. Mention Athena as the "free" Iceberg consumer: `./consumers/iceberg/athena_run.sh`.
 
-If someone asks about delta-rs or DuckDB: `docs/09-open-questions.md` Q11. Tableflow's Delta tables use column mapping `id`, type widening and deletion vectors; today that needs a Spark/Databricks-class reader.
+Then make the reader point explicitly (30 seconds, it is the most useful thing in the demo): "Delta needs no catalog, but it does need a reader that implements the table features Tableflow writes." Show `_delta_log/00000000000000000001.json`'s protocol line (reader version 3: `typeWidening`, `deletionVectors`, `columnMapping`), then run the probe to show the failure mode live:
+
+```bash
+DELTA_TABLE_URI=<table path> python3 consumers/delta/deltalake_read.py   # delta-rs: "Unsupported table features required: [TypeWidening]"
+```
+
+DuckDB counts rows but returns NULL columns for the same table. Spark and Databricks read it. `docs/09-open-questions.md` Q11 has versions and errors.
 
 ## 5. The audit evidence (1 minute)
 
@@ -80,4 +88,8 @@ Say: the only principal that has ever written to the bucket is `tableflow-writer
 - Everything is Terraform through GitHub Actions with OIDC; `docs/07-terraform-cicd.md`.
 - Open questions and their live results: `docs/09-open-questions.md`.
 
-Stop the producer: `docker stop shadowtraffic-orders`.
+## After the demo
+
+1. Stop the producer: `docker stop shadowtraffic-orders`.
+2. `scripts/aws-idle.sh`: stops the runner (EBS kept) and destroys the interface endpoints. Prints what still bills (S3 storage and CloudTrail, both negligible).
+3. Confluent stays up. To retire the demo entirely, follow the teardown order in docs/07.

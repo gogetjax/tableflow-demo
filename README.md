@@ -2,13 +2,17 @@
 
 Confluent Tableflow materializing one cleaned Kafka topic into **both Apache Iceberg and Delta Lake** in a customer-owned S3 bucket, with consumers that never talk to Confluent.
 
-```
-ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (clean) ──Tableflow──▶ S3 (Iceberg + Delta)
-                                                                                     │
-                                                          Glue Data Catalog ◀────────┤ (Iceberg metadata only)
-                                                                                     │
-                                                    Iceberg consumer ◀── Glue + S3   │
-                                                    Delta consumer   ◀── S3 path ────┘
+```mermaid
+flowchart LR
+  ST[ShadowTraffic] -- Avro + Schema Registry --> RAW[[orders.raw]]
+  RAW --> FL[Flink SQL<br/>validate · normalize · dedup] --> CLEAN[[orders.clean]]
+  FL --> REJ[[orders.rejected]]
+  CLEAN --> TF[Tableflow<br/>BYOS · ICEBERG + DELTA]
+  TF -- one set of Parquet files<br/>+ Iceberg metadata + _delta_log --> S3[(S3 lake bucket)]
+  TF -- Iceberg pointer --> GLUE[(Glue Data Catalog)]
+  GLUE --> IC[Iceberg consumer<br/>PyIceberg · Athena]
+  S3 --> IC
+  S3 -- path only --> DC[Delta consumer<br/>Spark + Delta Lake]
 ```
 
 ## What this demonstrates
@@ -21,7 +25,7 @@ ShadowTraffic ──Avro──▶ Kafka (raw) ──Flink SQL──▶ Kafka (cl
 | Shift-left cleaning with Confluent Cloud Flink SQL | `flink/`, [docs/04-flink-spec.md](docs/04-flink-spec.md) |
 | Catalog strategy: Glue for Iceberg, path-based for Delta | [docs/adr/0002-catalog-strategy.md](docs/adr/0002-catalog-strategy.md) |
 | Consumer isolation: zero Confluent credentials or network path on the read side, proven from a no-internet subnet with CloudTrail evidence | `consumers/`, [docs/06-consumer-spec.md](docs/06-consumer-spec.md), [docs/adr/0003-consumer-isolation.md](docs/adr/0003-consumer-isolation.md) |
-| Iceberg read via Glue (PyIceberg, Athena); Delta read by path (Spark + Delta Lake) | `consumers/iceberg`, `consumers/delta` |
+| Iceberg read via Glue (PyIceberg, Athena). Delta needs no catalog, but requires a reader that implements the Delta table features Tableflow writes (Spark + Delta Lake here) | `consumers/iceberg`, `consumers/delta` |
 | Everything provisioned by Terraform through GitHub Actions | [docs/07-terraform-cicd.md](docs/07-terraform-cicd.md) |
 
 ## Repository layout
@@ -72,11 +76,11 @@ Every row in [docs/09-open-questions.md](docs/09-open-questions.md) has a record
 
 ## Known gaps
 
-- **Delta readers.** Tableflow's Delta tables carry reader features `typeWidening`, `deletionVectors` and column mapping `id`. Spark 3.5 + Delta 3.3 (and Databricks) read them; delta-rs 1.6 and DuckDB's delta extension do not (docs/09 Q11). The Delta consumer is Spark-based.
+- **Delta readers.** Delta needs no catalog, but requires a reader that implements the Delta table features Tableflow writes: reader version 3 with `typeWidening`, `deletionVectors` and column mapping `id`. Spark 3.5 + Delta 3.3 (and Databricks) read them; delta-rs 1.6.5 and DuckDB's delta extension (1.5.5 and the 2.0 nightly) do not (docs/09 Q11). Confluent's docs do not state which protocol features Tableflow writes; the list above is observed from the `_delta_log`.
+- **Renovate**: `renovate.json` is present, but the Renovate GitHub App is not installed on this repo, so no update PRs are opened until it is.
 - **Databricks path read** is written (`consumers/delta/databricks.sql`) but was not executed; no workspace was available (Q10).
 - **Glue IAM verbs** for `tableflow-glue-writer` are a working superset, not the Console-generated minimum (Q8).
 - **ShadowTraffic registers its schema** on start even with `auto.register.schemas=false`; the producer service account needs subject write, and governance is enforced by the schema being identical (docs/03).
-- **Renovate** config is in the repo but the app must be enabled on the repo/org to open PRs.
 
 ## Key constraints (read before changing anything)
 
