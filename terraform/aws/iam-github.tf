@@ -81,6 +81,55 @@ data "aws_iam_policy_document" "github_terraform" {
     resources = ["*"]
   }
 
+  # Phase 6 buckets: Athena results, tooling, CloudTrail logs (all named tableflow-demo-*).
+  statement {
+    sid     = "DemoSupportBuckets"
+    effect  = "Allow"
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::tableflow-demo-athena-results-${local.account_id}",
+      "arn:aws:s3:::tableflow-demo-athena-results-${local.account_id}/*",
+      "arn:aws:s3:::tableflow-demo-tooling-${local.account_id}",
+      "arn:aws:s3:::tableflow-demo-tooling-${local.account_id}/*",
+      "arn:aws:s3:::tableflow-demo-cloudtrail-${local.account_id}",
+      "arn:aws:s3:::tableflow-demo-cloudtrail-${local.account_id}/*",
+    ]
+  }
+
+  # Phase 6 runtime: Athena workgroup, the public AL2023 AMI parameter, the lake trail,
+  # and passing the runner instance role to EC2.
+  statement {
+    sid       = "AthenaWorkgroup"
+    effect    = "Allow"
+    actions   = ["athena:*WorkGroup*", "athena:ListWorkGroups", "athena:TagResource", "athena:UntagResource", "athena:ListTagsForResource"]
+    resources = ["arn:aws:athena:${var.region}:${local.account_id}:workgroup/tableflow-demo-*"]
+  }
+  statement {
+    sid       = "AmiParameter"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = ["arn:aws:ssm:${var.region}::parameter/aws/service/ami-amazon-linux-latest/*"]
+  }
+  statement {
+    sid       = "LakeTrail"
+    effect    = "Allow"
+    actions   = ["cloudtrail:*"]
+    resources = ["arn:aws:cloudtrail:${var.region}:${local.account_id}:trail/tableflow-demo-*"]
+  }
+  statement {
+    # DescribeTrails / ListTrails do not support resource-level permissions.
+    sid       = "TrailRead"
+    effect    = "Allow"
+    actions   = ["cloudtrail:DescribeTrails", "cloudtrail:ListTrails", "cloudtrail:GetTrailStatus", "cloudtrail:GetEventSelectors", "cloudtrail:ListTags"]
+    resources = ["*"]
+  }
+  statement {
+    sid       = "PassRunnerRole"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = ["arn:aws:iam::${local.account_id}:role/tableflow-demo-consumer-runner"]
+  }
+
   # IAM: only the roles and policies this root manages.
   statement {
     sid     = "IamRoles"

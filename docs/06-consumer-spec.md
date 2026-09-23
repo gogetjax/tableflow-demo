@@ -44,13 +44,16 @@ sequenceDiagram
   C-->>C: scan / query
 ```
 
-Implementations:
+Implementations, as built in Phase 6:
 
-1. **delta-rs** (`consumers/delta/deltalake_read.py`): `DeltaTable("s3://tableflow-demo-lake-<acct>/<path-to-orders.clean>")`. Print `version()`, schema, row count, 5 rows. Rerun to show version advanced.
-2. **DuckDB** (`consumers/delta/duckdb_read.sql`): `SELECT count(*) FROM delta_scan('s3://.../orders.clean')` with the `httpfs` + `delta` extensions and the AWS credential chain.
-3. **Databricks** (`consumers/delta/databricks.sql`, not run in CI): `CREATE TABLE demo.orders_clean USING DELTA LOCATION 's3://...'` as an external table. This is exactly what Confluent's Unity Catalog integration would do for you; here it's manual, which keeps Databricks out of the trust picture with Confluent.
+1. **Spark + Delta Lake** (`consumers/delta/spark_read.py`, the working reader): PySpark 3.5 local mode with `delta-spark` 3.3, `DeltaTable.forPath` / `spark.read.format("delta").load(path)`. Prints version, schema, row count, 5 rows. On the isolated runner it uses bundled jars (`SPARK_JARS`) and a bundled JDK; nothing is fetched from Maven.
+2. **delta-rs** (`consumers/delta/deltalake_read.py`): **does not read Tableflow's table** with `deltalake` 1.6.5. Tableflow's Delta log upgrades the protocol at commit 1 to reader version 3 with reader features `typeWidening`, `deletionVectors`, `columnMapping`; delta-rs rejects `typeWidening` on both its pyarrow and DataFusion paths. Kept as the probe; `--version-only` works because reading the log does not need the features.
+3. **DuckDB** (`consumers/delta/duckdb_read.sql`): `delta_scan` returns the right `count(*)` but **every column is NULL** (DuckDB 1.5.5 and 2.0.0-dev nightly). The table uses column mapping mode `id` with physical names `col_N` in the Delta schema while the Parquet files carry the logical names plus `PARQUET:field_id`; DuckDB resolves by physical name. Kept as the probe.
+4. **Databricks** (`consumers/delta/databricks.sql`, not run in CI): `CREATE TABLE ... USING DELTA LOCATION '<table_path>'`. Databricks Runtime reads column mapping `id`, type widening and deletion vectors natively. This is exactly what Confluent's Unity Catalog integration would register for you; here it's manual, which keeps Databricks out of the trust picture with Confluent.
 
-The Delta table path is an implementation detail of Tableflow's layout (09-Q4). Resolve it once and put it in `consumers/delta/.env.example`; the consumer must not need Confluent to discover it.
+So "Delta needs no catalog" holds, but "any Delta reader will do" does not: Tableflow's Delta output currently needs a Delta Kernel / Spark-class reader. Recorded as 09-Q11.
+
+The Delta table path is `table_path` from Tableflow (09-Q4), fixed in `consumers/delta/.env.example`; the consumer never needs Confluent to discover it.
 
 ## Comparison the demo should print
 
@@ -59,6 +62,7 @@ The Delta table path is an implementation detail of Tableflow's layout (09-Q4). 
 | Discovery | Glue catalog | S3 path |
 | AWS permissions | Glue read + S3 read | S3 read |
 | Confluent permissions | none | none |
+| Reader | PyIceberg 0.11 | Spark 3.5 + Delta 3.3 |
 | Current-version pointer | Glue `metadata_location` | highest `_delta_log/NNN.json` |
 | Row count at time T | should match | should match |
 
@@ -66,4 +70,8 @@ Both counts should agree within one Tableflow commit window. Print both side by 
 
 ## CI smoke test
 
-`.github/workflows/consumers-smoke.yml`: assumes each consumer role via OIDC, runs the PyIceberg and delta-rs scripts, asserts row counts > 0 and equal within tolerance. Runs on a schedule and on PRs touching `consumers/`.
+`.github/workflows/consumers-smoke.yml` (Phase 7): assumes each consumer role via OIDC, runs the PyIceberg and Spark scripts, asserts row counts > 0 and equal within tolerance. Runs on a schedule and on PRs touching `consumers/`. `.github/workflows/consumers-check.yml` (Phase 6) fails if any code or config under `consumers/` carries Confluent connection material (hostnames, `CONFLUENT_*`, Schema Registry / bootstrap / SASL settings); prose mentions are allowed.
+
+## Isolated run (Phase 6 evidence)
+
+`terraform/aws/consumers-runtime.tf` adds an SSM-managed Amazon Linux 2023 instance in the private subnet (no IGW, no NAT), interface endpoints for SSM, STS and Athena next to the Glue one, an S3 gateway endpoint, a tooling bucket with the scripts, a Python 3.9 wheelhouse, the Spark/Delta jars and a JDK, and a CloudTrail trail of the lake bucket's data events. `consumers/runner/run.sh` sends `consumers/runner/bootstrap.sh` to the instance through SSM; the script first proves there is no internet route (`curl https://docs.confluent.io` must time out), then runs both readers under their consumer roles and prints the side-by-side table.
