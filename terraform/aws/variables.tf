@@ -65,3 +65,15 @@ variable "consumer_trusted_principal_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "idle" {
+  description = <<-EOT
+    true (default) keeps the billable demo pieces off: no interface VPC endpoints and the
+    consumer runner instance stopped. scripts/aws-resume.sh applies with -var idle=false;
+    scripts/aws-idle.sh applies with the default. A fresh CI apply therefore never turns
+    anything on. Everything else (VPC, S3 gateway endpoint, IAM, buckets, Glue, CloudTrail)
+    exists in both states.
+  EOT
+  type        = bool
+  default     = true
+}

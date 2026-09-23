@@ -2,7 +2,8 @@
 #
 # - Athena workgroup + results bucket for the Iceberg-via-Glue consumer.
 # - SSM interface endpoints so an instance in the isolated subnet is reachable without any
-#   internet route (the proof of isolation).
+#   internet route (the proof of isolation). All interface endpoints and the instance's running
+#   state are gated by var.idle (default true = off).
 # - A "tooling" bucket reachable through the S3 gateway endpoint that carries the consumer
 #   scripts and a Python wheelhouse, because the subnet has no route to PyPI.
 # - The runner instance (Amazon Linux 2023, SSM-managed) with an instance profile that can
@@ -88,7 +89,7 @@ resource "aws_iam_role_policy_attachment" "consumer_iceberg_athena" {
 # --- SSM endpoints (no internet route in the subnet) ------------------------------
 
 resource "aws_vpc_endpoint" "ssm" {
-  for_each            = toset(["ssm", "ssmmessages", "ec2messages"])
+  for_each            = var.idle ? toset([]) : toset(["ssm", "ssmmessages", "ec2messages"])
   vpc_id              = aws_vpc.consumers.id
   service_name        = "com.amazonaws.${var.region}.${each.key}"
   vpc_endpoint_type   = "Interface"
@@ -100,6 +101,7 @@ resource "aws_vpc_endpoint" "ssm" {
 
 # STS is needed for the instance to assume the consumer roles from inside the subnet.
 resource "aws_vpc_endpoint" "sts" {
+  count               = var.idle ? 0 : 1
   vpc_id              = aws_vpc.consumers.id
   service_name        = "com.amazonaws.${var.region}.sts"
   vpc_endpoint_type   = "Interface"
@@ -111,6 +113,7 @@ resource "aws_vpc_endpoint" "sts" {
 
 # Athena runs on its own interface endpoint as well.
 resource "aws_vpc_endpoint" "athena" {
+  count               = var.idle ? 0 : 1
   vpc_id              = aws_vpc.consumers.id
   service_name        = "com.amazonaws.${var.region}.athena"
   vpc_endpoint_type   = "Interface"
@@ -208,6 +211,13 @@ resource "aws_instance" "consumer_runner" {
     encrypted   = true
   }
   tags = { Name = "tableflow-demo-consumer-runner" }
+}
+
+# Running state follows var.idle. The instance itself stays defined (and its EBS volume with
+# the venv/JDK/jars survives) in both states.
+resource "aws_ec2_instance_state" "consumer_runner" {
+  instance_id = aws_instance.consumer_runner.id
+  state       = var.idle ? "stopped" : "running"
 }
 
 output "consumer_runner_instance_id" {
