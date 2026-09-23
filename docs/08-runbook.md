@@ -60,7 +60,7 @@ Confluent resources stay running by design (cluster, Flink pool and statements, 
 | S3 buckets (lake, tooling, Athena results, CloudTrail, state) | kept; storage only (~$0.023/GB-month, well under $1/month at demo volume) |
 | CloudTrail data events on the lake bucket | kept; $0.10 per 100k events, ~0 while the producer is stopped |
 
-`aws-resume.sh` runs `terraform apply` (endpoints back in 1–2 minutes), starts the instance, and waits for SSM to report it Online (1–3 minutes more). Both scripts are idempotent. The full teardown order for retiring the demo is in [docs/07-terraform-cicd.md](07-terraform-cicd.md).
+`aws-resume.sh` runs `terraform apply` (endpoints back in about a minute), starts the instance, and waits for SSM to report it Online (with one reboot; 5–6 minutes end to end). Both scripts are idempotent. Note that the endpoints are still in the Terraform configuration: any `tf-apply-aws.yml` run on `main` (a merged change under `terraform/aws/`) recreates them, so run `aws-idle.sh` again after such a merge. The full teardown order for retiring the demo is in [docs/07-terraform-cicd.md](07-terraform-cicd.md).
 
 Open runbook item: derive the Console-generated Glue IAM template for the catalog integration and tighten `tableflow-glue-writer` to it (docs/02, docs/09 Q8).
 
