@@ -7,7 +7,9 @@
 - Mermaid diagrams live inline in docs/*.md. Keep them current.
 
 ## Workflow
+- `origin/main` is the source of truth. Before starting any work, and before creating a branch or worktree, run `git pull` on `main` in the root checkout so it is never stale.
 - One phase per worktree: `claude -w <phase-branch>`. Branch names: `phase-N/<slug>`.
+- After a PR merges: pull `main`, remove the worktree, and delete the branch locally and on origin.
 - Every phase ends with a PR that links the prompt file that drove it and ticks the phase checklist in docs/08-runbook.md.
 - Terraform: `terraform fmt -check`, `terraform validate`, and a plan output pasted into the PR. Applies run only from GitHub Actions on `main`.
 - Secrets never enter the repo. Use GitHub Environments + OIDC for AWS; Confluent Cloud API keys via GitHub secrets consumed by the Terraform provider.
