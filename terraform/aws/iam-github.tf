@@ -117,6 +117,13 @@ data "aws_iam_policy_document" "github_terraform" {
     resources = ["arn:aws:cloudtrail:${var.region}:${local.account_id}:trail/tableflow-demo-*"]
   }
   statement {
+    # DescribeTrails / ListTrails do not support resource-level permissions.
+    sid       = "TrailRead"
+    effect    = "Allow"
+    actions   = ["cloudtrail:DescribeTrails", "cloudtrail:ListTrails", "cloudtrail:GetTrailStatus", "cloudtrail:GetEventSelectors", "cloudtrail:ListTags"]
+    resources = ["*"]
+  }
+  statement {
     sid       = "PassRunnerRole"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
