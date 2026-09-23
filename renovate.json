@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["terraform", "github-actions"],
+  "automerge": false,
+  "labels": ["dependencies"],
+  "terraform": {
+    "managerFilePatterns": ["/^terraform/.+\\.tf$/"]
+  },
+  "packageRules": [
+    {
+      "description": "Provider bumps open a PR; tf-plan.yml posts the plan. Nothing applies until merged.",
+      "matchManagers": ["terraform"],
+      "matchDepTypes": ["required_provider", "provider"],
+      "groupName": "terraform providers",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "schedule": ["before 6am on monday"]
+    }
+  ]
+}
